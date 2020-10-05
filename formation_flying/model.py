@@ -20,8 +20,6 @@ from .agents.flight import Flight
 from .agents.airports import Airport
 
 
-
-
 class FormationFlying(Model):
 
     # =========================================================================
@@ -127,7 +125,6 @@ class FormationFlying(Model):
             )
             self.space.place_agent(flight, pos)
             self.schedule.add(flight)
-
 
     # =============================================================================
     #   Create all airports. The option "inactive_airports" gives you the 

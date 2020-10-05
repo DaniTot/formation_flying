@@ -17,7 +17,9 @@ import numpy as np
 
 from mesa import Agent
 from .airports import Airport
-from ..negotiations.greedy import do_greedy # !!! Don't forget the others.
+from ..negotiations.greedy import do_greedy
+from ..negotiations.CNP import CNP
+
 import math
 
 
@@ -59,6 +61,7 @@ class Flight(Agent):
     ):
 
         super().__init__(unique_id, model)
+        self.agent_type = "Flight"
         self.pos = np.array(pos)
         self.destination = np.array(destination_pos)
         self.destination_agent = destination_agent
@@ -81,7 +84,7 @@ class Flight(Agent):
         self.fuel_consumption = 0   # A counter which counts the fuel consumed
         self.deal_value = 0         # All the fuel lost or won during bidding
 
-        self.formation_state = 0    # 0 = no formation, 1 = committed, 2 = in formation, 3 = unavailable, 4 = adding to formation
+        self.formation_state = "no_formation"    # 0 = no formation, 1 = committed, 2 = in formation, 3 = unavailable, 4 = adding to formation
 
         self.state = "scheduled"    # Can be scheduled, flying, or arrived
 
@@ -96,9 +99,23 @@ class Flight(Agent):
         self.accepting_bids = 0
         self.received_bids = []
 
-        self.manager = self.model.random.choice([0, 1])
+        if self.model.negotiation_method == 0:
+            self.manager = self.model.random.choice([0, 1])
+        elif self.model.negotiation_method == 1:
+            self.manager = 0
+        else:
+            raise NotImplementedError
+        self.update_role()
+
+        # create a CNP object
+        if self.model.negotiation_method == 1:
+            self.cnp = CNP(self)
+
+    def update_role(self):
         if self.manager:
             self.accepting_bids = 1
+        else:
+            self.accepting_bids = 0
         self.auctioneer = abs(1 - self.manager)
 
     # =============================================================================
@@ -117,8 +134,8 @@ class Flight(Agent):
         if self.state == "flying":
             if self.model.negotiation_method == 0:
                 do_greedy(self)
-            # if self.model.negotiation_method == 1:
-            #     do_CNP(self)
+            if self.model.negotiation_method == 1:
+                self.cnp.do_cnp()
             # if self.model.negotiation_method == 2:
             #     do_English(self)
             # if self.model.negotiation_method == 3:
@@ -228,7 +245,7 @@ class Flight(Agent):
 
         for agent in involved_agents:
             agent.agents_in_my_formation.append(target_agent)
-            agent.formation_state = 4
+            agent.formation_state = "adding_to_formation"
 
         if target_agent in involved_agents:
             raise Exception("This is not correct")
@@ -242,7 +259,7 @@ class Flight(Agent):
 
         target_agent.deal_value -= bid_value
 
-        target_agent.formation_state = 1
+        target_agent.formation_state = "committed"
 
         target_agent.agents_in_my_formation = involved_agents
         involved_agents.append(target_agent)
@@ -280,8 +297,8 @@ class Flight(Agent):
 
         if self.distance_to_destination(target_agent.pos) < 0.001:
             # Edge case where agents are at the same spot.
-            self.formation_state = 2
-            target_agent.formation_state = 2
+            self.formation_state = "in_formation"
+            target_agent.formation_state = "in_formation"
             self.accepting_bids = True
 
         else:
@@ -291,8 +308,8 @@ class Flight(Agent):
             self.speed_to_joining = self.calc_speed_to_joining_point(target_agent)
             target_agent.speed_to_joining = self.calc_speed_to_joining_point(target_agent)
 
-            target_agent.formation_state = 1
-            self.formation_state = 1
+            target_agent.formation_state = "committed"
+            self.formation_state = "committed"
 
 
         self.leaving_point = self.calc_middle_point(self.destination, target_agent.destination)
@@ -375,22 +392,22 @@ class Flight(Agent):
             # The agent only starts flying if it is at or past its departure time.
             self.state = "flying"
 
-            if self.formation_state == 2 and self.distance_to_destination(self.leaving_point) <= self.speed / 2:
+            if self.formation_state == "in_formation" and self.distance_to_destination(self.leaving_point) <= self.speed / 2:
                 # If agent is in formation & close to leaving-point, leave the formation
                 self.state = "flying"
-                self.formation_state = 0
+                self.formation_state = "no_formation"
                 self.agents_in_my_formation = []
 
-            if (self.formation_state == 1 or self.formation_state == 4) and \
+            if (self.formation_state == "committed" or self.formation_state == "adding_to_formation") and \
                     self.distance_to_destination(self.joining_point) <= self.speed_to_joining / 2:
                 # If the agent reached the joining point of a new formation, 
                 # change status to "in formation" and start accepting new bids again.
-                self.formation_state = 2
+                self.formation_state = "in_formation"
                 self.accepting_bids = True
 
         if self.state == "flying":
             self.model.total_flight_time += 1
-            if self.formation_state == 2:
+            if self.formation_state == "in_formation":
                 # If in formation, fuel consumption is 75% of normal fuel consumption.
                 f_c = self.model.fuel_reduction * self.speed
                 self.heading = [self.leaving_point[0] - self.pos[0], self.leaving_point[1] - self.pos[1]]
@@ -399,9 +416,9 @@ class Flight(Agent):
 
 
 
-            elif self.formation_state == 1 or self.formation_state == 4:
+            elif self.formation_state == "committed" or self.formation_state == "adding_to_formation":
                 # While on its way to join a new formation
-                if self.formation_state == 4 and len(self.agents_in_my_formation) > 0:
+                if self.formation_state == "adding_to_formation" and len(self.agents_in_my_formation) > 0:
                     f_c = self.speed_to_joining * self.model.fuel_reduction
                 else:
                     f_c = self.speed_to_joining

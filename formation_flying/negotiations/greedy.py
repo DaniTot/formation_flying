@@ -12,7 +12,7 @@ def do_greedy(flight):
         raise Exception("The object passed to the greedy protocol has no departure time, therefore it seems that it is not a flight.")
 
     # If the agent is not yet in a formation, start finding candidates.
-    if flight.formation_state == 0:
+    if flight.formation_state == "no_formation":
         formation_targets = flight.find_greedy_candidate()
         
         # If there are candidates, start a formation with the first candidate 

@@ -28,17 +28,19 @@ def boid_draw(agent):
         if agent.state == "scheduled":
             return {"Shape": "circle", "r": 1, "Filled": "true", "Color": "Red"}
         elif agent.state == "flying":
-            if (agent.formation_state == 0 or agent.formation_state == 3):
+            if (agent.formation_state == "no_formation" or agent.formation_state == "unavailable"):
                 if agent.auctioneer:
                     return {"Shape": "circle", "r": 2, "Filled": "true", "Color": "Red"}
                 elif agent.manager:
                     return {"Shape": "circle", "r": 2, "Filled": "true", "Color": "Pink"}
-            elif agent.formation_state == 4:
+            elif agent.formation_state == "adding_to_formation":
                 return {"Shape": "circle", "r": 2, "Filled": "true", "Color": "Yellow"}
-            elif agent.formation_state == 2:
+            elif agent.formation_state == "in_formation":
                 return {"Shape": "circle", "r": 2, "Filled": "true", "Color": "Black"}
-            elif agent.formation_state == 1:
+            elif agent.formation_state == "committed":
                 return {"Shape": "circle", "r": 2, "Filled": "true", "Color": "Orange"}
+            else:
+                print(agent.formation_state)
         elif agent.state == "arrived":
             return {"Shape": "circle", "r": 1, "Filled": "true", "Color": "Red"}
         else:

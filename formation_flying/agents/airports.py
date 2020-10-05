@@ -19,6 +19,7 @@ class Airport(Agent):
                  ):
 
         super().__init__(unique_id, model)
+        self.agent_type = "Airport"
         self.pos = np.array(pos)
         self.airport_type = type
         self.deal_value = 0 # this is added because otherwise the metrics give errors.
