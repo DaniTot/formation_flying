@@ -33,6 +33,11 @@ class FormationFlying(Model):
     #       separation: What's the minimum distance each Boid will attempt to
     #                   keep from any other the three drives.
     # =========================================================================
+    # TODO: Performance indicators:
+    #  Average fuel saved / aircraft;
+    #  Distribution of # of AC in formation;
+    #  Distribution of delay times
+
     def __init__(
         self,
         n_flights=2,
@@ -82,7 +87,6 @@ class FormationFlying(Model):
         self.fuel_savings_closed_deals = 0
 
         self.total_planned_fuel = 0
-
 
         self.new_formation_counter = 0
         self.add_to_formation_counter = 0

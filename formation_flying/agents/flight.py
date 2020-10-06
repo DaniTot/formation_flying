@@ -19,15 +19,9 @@ from mesa import Agent
 from .airports import Airport
 from ..negotiations.greedy import do_greedy
 from ..negotiations.CNP import CNP
+from ..miscellaneous import calc_distance
 
 import math
-
-
-def calc_distance(p1, p2):
-    # p1 = tuple(p1)
-    # p2 = tuple(p2)
-    dist = (((p1[0] - p2[0])**2 + (p1[1] - p2[1])**2) ** 0.5)
-    return dist
 
 
 class Flight(Agent):
@@ -106,10 +100,22 @@ class Flight(Agent):
         else:
             raise NotImplementedError
         self.update_role()
-
         # create a CNP object
         if self.model.negotiation_method == 1:
             self.cnp = CNP(self)
+
+    # =============================================================================
+    #   __hash__, __eq__, __ne__ are required so Flight objects can be used as
+    #   dictionary keys.
+    # =============================================================================
+    def __hash__(self):
+        return hash(self.unique_id)
+
+    def __eq__(self, other):
+        return self.unique_id == other.unique_id
+
+    def __ne__(self, other):
+        return not(self == other)
 
     def update_role(self):
         if self.manager:
@@ -413,8 +419,6 @@ class Flight(Agent):
                 self.heading = [self.leaving_point[0] - self.pos[0], self.leaving_point[1] - self.pos[1]]
                 self.heading /= np.linalg.norm(self.heading)
                 new_pos = self.pos + self.heading * self.speed
-
-
 
             elif self.formation_state == "committed" or self.formation_state == "adding_to_formation":
                 # While on its way to join a new formation

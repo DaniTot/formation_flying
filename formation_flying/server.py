@@ -11,12 +11,11 @@
 from mesa.visualization.ModularVisualization import ModularServer
 from mesa.visualization.modules import ChartModule
 
-from .model import FormationFlying
-from .SimpleContinuousModule import SimpleCanvas
-from .agents.flight import Flight
-from .agents.airports import Airport
-from .parameters import model_params
-
+from formation_flying.model import FormationFlying
+from formation_flying.SimpleContinuousModule import SimpleCanvas
+from formation_flying.agents.flight import Flight
+from formation_flying.agents.airports import Airport
+from formation_flying.parameters import model_params
 
 
 def boid_draw(agent):
@@ -61,7 +60,7 @@ def boid_draw(agent):
 
 # Makes a canvas of 500x500 pixels. Increasing or decreasing canvas size should 
 # not affect results - only visualization.
-formation_canvas = SimpleCanvas(boid_draw, 1000, 1000) 
+formation_canvas = SimpleCanvas(boid_draw, 500, 500)
 
 
 chart = ChartModule([{"Label": "Total Fuel Used", "Color": "Black"}],
