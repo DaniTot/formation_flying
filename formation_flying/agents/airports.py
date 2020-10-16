@@ -22,7 +22,23 @@ class Airport(Agent):
         self.agent_type = "Airport"
         self.pos = np.array(pos)
         self.airport_type = type
-        self.deal_value = 0 # this is added because otherwise the metrics give errors.
+
+        # Performance indicators added because otherwise the metrics give errors.
+        self.planned_fuel = 0
+        self.estimated_fuel_saved = 0
+        self.real_fuel_saved = 0
+        self.distance_in_formation = 0
+        self.formation_size = 0
+        self.planned_flight_time = 0
+        self.scheduled_arrival = 0
+        # self.estimated_flight_time = 0 #
+        # self.estimated_arrival = 0 #
+        self.real_flight_time = 0
+        self.real_arrival = 0
+        self.delay = 0
+        self.fuel_consumption = 0   # A counter which counts the fuel consumed
+        self.deal_value = 0
+
         self.closure_time = closure_time
         if type == "Origin":
             self.model.origin_list.append(pos)

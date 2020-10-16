@@ -4,6 +4,7 @@
 
 # def do_CNP(flight):
 #     # the do_CNP function takes a flight-agent object
+from ..miscellaneous import calc_distance
 
 
 class CNP:
@@ -135,7 +136,7 @@ class CNP:
         for neighbor in self.flight.model.space.get_neighbors(pos=self.flight.pos,
                                                               radius=self.flight.communication_range,
                                                               include_center=True):
-            if type(neighbor) is Flight and neighbor.unique_id != self.flight.unique_id and neighbor.manager == 0 and neighbor.formation_state is "no_formation":
+            if neighbor.agent_type == "Flight" and neighbor.unique_id != self.flight.unique_id and neighbor.manager == 0 and neighbor.formation_state is "no_formation":
                 self.free_flights_in_reach.append(neighbor)
         # Contact the neighboring free agents
         for neighbor in self.free_flights_in_reach:
@@ -168,7 +169,7 @@ class CNP:
         for neighbor in self.flight.model.space.get_neighbors(pos=self.flight.pos,
                                                               radius=self.flight.communication_range,
                                                               include_center=True):
-            if type(neighbor) is Flight and neighbor.unique_id != self.flight.unique_id and neighbor.manager == 0 and neighbor.formation_state is "no_formation":
+            if neighbor.agent_type == "Flight" and neighbor.unique_id != self.flight.unique_id and neighbor.manager == 0 and neighbor.formation_state is "no_formation":
                 neighbor.cnp.managers_calling.append(self.flight)
         return
 

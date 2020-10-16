@@ -42,6 +42,9 @@ class Flight(Agent):
     #     communication_range: Radius to look around for Flights to negotiate with.
     # =========================================================================
 
+    # TODO: Performance indicators:
+    #  Fuel saved / alliance
+
     def __init__(
             self,
             unique_id,
@@ -72,9 +75,20 @@ class Flight(Agent):
         self.leaving_point = [-10, -10]
         self.joining_point = [-10, -10]
 
+        # Performance indicators
         self.planned_fuel = calc_distance(self.pos, self.destination)
         self.model.total_planned_fuel += self.planned_fuel
-
+        self.estimated_fuel_saved = 0 #
+        self.real_fuel_saved = None
+        self.distance_in_formation = 0  ##
+        self.formation_size = 0 ##
+        self.planned_flight_time = calc_distance(self.pos, self.destination) / self.speed
+        self.scheduled_arrival = self.departure_time + self.planned_flight_time
+        # self.estimated_flight_time = 0 #
+        # self.estimated_arrival = 0 #
+        self.real_flight_time = 0 ##
+        self.real_arrival = None ##
+        self.delay = None ##
         self.fuel_consumption = 0   # A counter which counts the fuel consumed
         self.deal_value = 0         # All the fuel lost or won during bidding
 
@@ -138,6 +152,17 @@ class Flight(Agent):
     # =============================================================================
     def step(self):
         if self.state == "flying":
+
+            # Update the relevant performance indicators
+            self.real_flight_time += 1
+            if self.manager == 1:
+                self.formation_size = 1 + len(self.agents_in_my_formation)
+            else:
+                self.formation_size = 0
+            if len(self.agents_in_my_formation) > 0:
+                self.distance_in_formation += self.speed
+
+            # Steps for the different negotiation methods
             if self.model.negotiation_method == 0:
                 do_greedy(self)
             if self.model.negotiation_method == 1:
@@ -258,14 +283,15 @@ class Flight(Agent):
 
         bid_receivers = bid_value / (len(
             self.agents_in_my_formation) + 1)
-
         self.deal_value += bid_receivers
         for agent in self.agents_in_my_formation:
             agent.deal_value += bid_receivers
-
         target_agent.deal_value -= bid_value
 
         target_agent.formation_state = "committed"
+
+        self.estimated_fuel_saved += self.calculate_potential_fuelsavings(target_agent)
+        target_agent.estimated_fuel_saved += target_agent.calculate_potential_fuelsavings(self)
 
         target_agent.agents_in_my_formation = involved_agents
         involved_agents.append(target_agent)
@@ -274,6 +300,18 @@ class Flight(Agent):
             agent.joining_point = self.joining_point
             agent.leaving_point = self.leaving_point
             agent.speed_to_joining = self.speed_to_joining
+
+        # self.estimated_flight_time = self.real_flight_time + (
+        #         calc_distance(self.pos, self.joining_point) +
+        #         calc_distance(self.joining_point, self.leaving_point) +
+        #         calc_distance(self.leaving_point, self.destination)) / self.speed
+        # self.estimated_arrival = self.departure_time + self.estimated_flight_time
+
+        # target_agent.estimated_flight_time = target_agent.real_flight_time + (
+        #         calc_distance(target_agent.pos, target_agent.joining_point) +
+        #         calc_distance(target_agent.joining_point, target_agent.leaving_point) +
+        #         calc_distance(target_agent.leaving_point, target_agent.destination)) / target_agent.speed
+        # target_agent.estimated_arrival = target_agent.departure_time + target_agent.estimated_flight_time
 
     # =========================================================================
     #   The value of the bid is added to the "deal value" of the manager, 
@@ -317,11 +355,25 @@ class Flight(Agent):
             target_agent.formation_state = "committed"
             self.formation_state = "committed"
 
+        self.estimated_fuel_saved += self.calculate_potential_fuelsavings(target_agent)
+        target_agent.estimated_fuel_saved += target_agent.calculate_potential_fuelsavings(self)
 
         self.leaving_point = self.calc_middle_point(self.destination, target_agent.destination)
         self.agents_in_my_formation.append(target_agent)
         target_agent.agents_in_my_formation.append(self)
         target_agent.leaving_point = self.leaving_point
+
+        # self.estimated_flight_time = self.real_flight_time + (
+        #         calc_distance(self.pos, self.joining_point) +
+        #         calc_distance(self.joining_point, self.leaving_point) +
+        #         calc_distance(self.leaving_point, self.destination)) / self.speed
+        # self.estimated_arrival = self.departure_time + self.estimated_flight_time
+
+        # target_agent.estimated_flight_time = target_agent.real_flight_time + (
+        #         calc_distance(target_agent.pos, target_agent.joining_point) +
+        #         calc_distance(target_agent.joining_point, target_agent.leaving_point) +
+        #         calc_distance(target_agent.leaving_point, target_agent.destination)) / target_agent.speed
+        # target_agent.estimated_arrival = target_agent.departure_time + target_agent.estimated_flight_time
 
 
     # =============================================================================
@@ -392,7 +444,13 @@ class Flight(Agent):
 
         if self.distance_to_destination(self.destination) <= self.speed / 2:
             # If the agent is within reach of its destination, the state is changed to "arrived"
-            self.state = "arrived"
+            if self.state == "flying":
+                self.real_fuel_saved = self.planned_fuel - self.fuel_consumption
+                self.real_arrival = self.departure_time + self.real_flight_time
+                self.delay = self.real_arrival - self.scheduled_arrival
+                print(
+                    f"Flight {self.unique_id} arrived at {self.real_arrival} with a delay of {self.delay}, saving {self.real_fuel_saved} fuel.")
+                self.state = "arrived"
 
         elif self.model.schedule.steps >= self.departure_time:
             # The agent only starts flying if it is at or past its departure time.

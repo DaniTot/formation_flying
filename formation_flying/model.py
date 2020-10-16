@@ -34,9 +34,7 @@ class FormationFlying(Model):
     #                   keep from any other the three drives.
     # =========================================================================
     # TODO: Performance indicators:
-    #  Average fuel saved / aircraft;
-    #  Distribution of # of AC in formation;
-    #  Distribution of delay times
+    #  Fuel saved / alliance
 
     def __init__(
         self,

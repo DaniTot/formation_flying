@@ -59,14 +59,23 @@ model_params = {
 # example: variable_params = {"communication_range": [0, 100, 500]}
 variable_params = {}
 
-model_reporter_parameters={"Total Fuel Used": compute_total_fuel_used, 
-                           "steps": compute_model_steps, 
-                           "new formations": new_formation_counter, 
-                           "added to formations": add_to_formation_counter, 
-                           "Total planned Fuel": compute_planned_fuel,
-                           "Total saved potential saved fuel": fuel_savings_closed_deals, 
-                           "Real saved fuel": real_fuel_saved,
-                           "Deal values": total_deal_value}
+# TODO: Performance indicators:
+#  Fuel saved / alliance
+
+model_reporter_parameters = {"Total Fuel Used": compute_total_fuel_used,
+                             "steps": compute_model_steps,
+                             "new formations": new_formation_counter,
+                             "added to formations": add_to_formation_counter,
+                             # "Total planned Fuel": compute_planned_fuel,
+                             # "Total saved potential saved fuel": fuel_savings_closed_deals,
+                             # "Real saved fuel": real_fuel_saved,
+                             "Deal values": total_deal_value}
 
 # In order to collect values like "deal-value", they should be specified on all agents.
-agent_reporter_parameters={"Deal value": "deal_value"} 
+agent_reporter_parameters = {"Deal value": "deal_value",
+                             "Planned fuel": "planned_fuel",
+                             "Estimated fuel saved": "estimated_fuel_saved",
+                             "Real fuel saved": "real_fuel_saved",
+                             "Distance in formation": "distance_in_formation",
+                             "Formation size": "formation_size",
+                             "Delay time": "delay"}
