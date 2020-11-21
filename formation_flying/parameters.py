@@ -36,13 +36,13 @@ from .metrics import *
 max_steps = 10000 
 
 # Multiple iterations are used when running the batchrunner.py:
-n_iterations = 2
+n_iterations = 5
 
 model_params = {
     "n_flights": 50,
     "n_origin_airports": 20,
     "n_destination_airports": 20,
-    "communication_range": 200, #[km]
+    # "communication_range": 200, #[km]
     "width": 750, # [km]
     "height": 750, # [km]
     "speed": 0.25, #[km / second]
@@ -57,7 +57,7 @@ model_params = {
 
 # To run model with a variable parameter:
 # example: variable_params = {"communication_range": [0, 100, 500]}
-variable_params = {}
+variable_params = {"communication_range": [200]}
 
 # TODO: Performance indicators:
 #  Fuel saved / alliance
@@ -66,16 +66,20 @@ model_reporter_parameters = {"Total Fuel Used": compute_total_fuel_used,
                              "steps": compute_model_steps,
                              "new formations": new_formation_counter,
                              "added to formations": add_to_formation_counter,
-                             # "Total planned Fuel": compute_planned_fuel,
+                             "Total planned Fuel": compute_planned_fuel,
                              # "Total saved potential saved fuel": fuel_savings_closed_deals,
-                             # "Real saved fuel": real_fuel_saved,
+                             "Real saved fuel": real_fuel_saved,
                              "Deal values": total_deal_value}
 
 # In order to collect values like "deal-value", they should be specified on all agents.
-agent_reporter_parameters = {"Deal value": "deal_value",
+agent_reporter_parameters = {"Behavior": "behavior",
+                             "Deal value": "deal_value",
                              "Planned fuel": "planned_fuel",
                              "Estimated fuel saved": "estimated_fuel_saved",
                              "Real fuel saved": "real_fuel_saved",
                              "Distance in formation": "distance_in_formation",
                              "Formation size": "formation_size",
-                             "Delay time": "delay"}
+                             "Estimated delay": "estimated_delay",
+                             "Delay time": "delay",
+                             "Estimated utility": "estimated_utility_score",
+                             "Utility": "real_utility_score"}

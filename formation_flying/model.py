@@ -18,6 +18,7 @@ from .parameters import model_params, max_steps, n_iterations, model_reporter_pa
 
 from .agents.flight import Flight
 from .agents.airports import Airport
+from .miscellaneous import calc_distance
 
 
 class FormationFlying(Model):
@@ -100,6 +101,8 @@ class FormationFlying(Model):
         self.running = True
 
         self.datacollector = DataCollector(model_reporter_parameters, agent_reporter_parameters)
+
+        print("Model initiated")
         
     # =========================================================================
     #  Create all flights, the flights are not all initialized at the same time,
@@ -109,8 +112,6 @@ class FormationFlying(Model):
     def make_agents(self):
 
         for i in range(self.n_flights):
-
-
             departure_time = self.random.uniform(0, self.departure_window)
             pos = self.random.choice(self.origin_list)
             destination_agent = self.random.choice(self.destination_agent_list)
@@ -127,6 +128,8 @@ class FormationFlying(Model):
             )
             self.space.place_agent(flight, pos)
             self.schedule.add(flight)
+            self.total_planned_fuel += calc_distance(flight.pos, flight.destination)
+        print("Agents created")
 
     # =============================================================================
     #   Create all airports. The option "inactive_airports" gives you the 
@@ -172,12 +175,14 @@ class FormationFlying(Model):
                     all_arrived = False
         if all_arrived:
             self.running = False
+            print("All arrived")
 
         # This is a verification that no deal value is created or lost (total deal value 
         # must be 0, and 0.001 is chosen here to avoid any issues with rounded numbers)
         if abs(total_deal_value) > 0.001:
             raise Exception("Deal value is {}".format(total_deal_value))
 
+        print("\nStep", self.schedule.steps)
         self.schedule.step()
         self.datacollector.collect(self)
 

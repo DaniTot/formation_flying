@@ -38,6 +38,10 @@ class Airport(Agent):
         self.delay = 0
         self.fuel_consumption = 0   # A counter which counts the fuel consumed
         self.deal_value = 0
+        self.real_utility_score = 0
+        self.estimated_utility_score = 0
+        self.estimated_delay = 0
+        self.behavior = self.agent_type
 
         self.closure_time = closure_time
         if type == "Origin":
