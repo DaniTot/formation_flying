@@ -6,6 +6,10 @@ def calc_distance(p1, p2):
     return dist
 
 
+def calc_middle_point(a, b):
+    return [0.5 * (a[0] + b[0]), 0.5 * (a[1] + b[1])]
+
+
 def utility_function(profit, fuel_saved, delay, with_ally=0, behavior="balanced"):
     behavior_options = {"budget": {"profit_weight": 4,
                                    "fuel_saved_weight": 1,

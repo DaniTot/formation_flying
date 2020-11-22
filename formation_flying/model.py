@@ -159,7 +159,7 @@ class FormationFlying(Model):
             airport = Airport(i + self.n_flights + self.n_origin_airports, self, pos, "Destination", closure_time)
             self.space.place_agent(airport, pos)
             self.destination_agent_list.append(airport)
-            self.schedule.add(airport) # agents are only plotted if they are part of the schedule
+            self.schedule.add(airport)  # agents are only plotted if they are part of the schedule
 
 
     # =========================================================================
