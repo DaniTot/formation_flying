@@ -20,7 +20,8 @@ from mesa import Agent
 from .airports import Airport
 from ..negotiations.greedy import do_greedy
 from ..negotiations.CNP import CNP
-from ..miscellaneous import calc_distance, utility_function
+from ..negotiations.japanese import Japanese
+from ..miscellaneous import calc_distance, utility_function, calc_middle_point
 
 import math
 
@@ -121,12 +122,16 @@ class Flight(Agent):
             self.manager = self.model.random.choice([0, 1])
         elif self.model.negotiation_method == 1:
             self.manager = 0
+        elif self.model.negotiation_method == 4:
+            self.manager = 0
         else:
             raise NotImplementedError
         self.update_role()
-        # create a CNP object
+        # create a negotiation object if required
         if self.model.negotiation_method == 1:
             self.cnp = CNP(self)
+        if self.model.negotiation_method == 4:
+            self.japanese = Japanese(self)
 
     # =============================================================================
     #   __hash__, __eq__, __ne__ are required so Flight objects can be used as
@@ -181,8 +186,9 @@ class Flight(Agent):
             #     do_English(self)
             # if self.model.negotiation_method == 3:
             #     do_Vickrey(self)
-            # if self.model.negotiation_method == 4:
-            #     do_Japanese(self)
+            if self.model.negotiation_method == 4:
+                self.japanese.do_japanese()
+
 
     # =============================================================================
     #   This formula assumes that the route of both agents are of same length, 
@@ -640,7 +646,7 @@ class Flight(Agent):
     def calc_speed_to_joining_point(self, neighbor):
 
         joining_point = self.calc_middle_point(self.pos, neighbor.pos)
-        # Am I stupid, or dist_self and are literally the same in the original code?
+        # Am I stupid, or dist_self and dist_neighbor are literally the same in the original code?
         dist_self = ((joining_point[0] - self.pos[0]) ** 2 + (joining_point[1] - self.pos[1]) ** 2) ** 0.5
         dist_neighbor = ((joining_point[0] - neighbor.pos[0]) ** 2 + (joining_point[1] - neighbor.pos[1]) ** 2) ** 0.5
         try:
@@ -664,12 +670,11 @@ class Flight(Agent):
                 time = regular_time
             return (dist_self / time)
         except FloatingPointError as err:
-            print(dist_self)
-            print(dist_self % self.speed)
-            print(math.floor(dist_self / self.speed))
-            if rest > 0:
-                print(rest, regular_time + 1)
-            elif rest == 0:
-                print(rest, regular_time)
-            raise err
-
+            # What if self and neighbor take off from the same airport at the same time, and thus dist_self and dist_neighbor are 0?
+            if dist_self == 0 and dist_neighbor == 0:
+                return 0.0
+            else:
+                print(self.pos, neighbor.pos)
+                print(dist_self, dist_neighbor)
+                print(regular_time, rest)
+                raise err

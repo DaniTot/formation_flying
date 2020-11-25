@@ -15,7 +15,6 @@ from mesa.datacollection import DataCollector
 from mesa.batchrunner import BatchRunner
 from .metrics import *
 from .parameters import model_params, max_steps, n_iterations, model_reporter_parameters, agent_reporter_parameters, variable_params
-
 from .agents.flight import Flight
 from .agents.airports import Airport
 from .miscellaneous import calc_distance

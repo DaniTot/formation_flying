@@ -200,8 +200,12 @@ class CNP:
         highest_bid = 0
         while utility_function(fuel_saving - highest_bid, fuel_saving, delay, behavior=self.flight.behavior) > min_utility:
             highest_bid += 10
+        highest_bid -= 10
         while utility_function(fuel_saving - highest_bid, fuel_saving, delay, behavior=self.flight.behavior) > min_utility:
             highest_bid += 1
+        highest_bid -= 1
+        # TODO: check if the -= part is actually correct
+        print(f"Highest bid {highest_bid}, resulting to utility {utility_function(fuel_saving - highest_bid, fuel_saving, delay, behavior=self.flight.behavior)}, compared to min utility {min_utility}")
         # print(f"Flight {self.flight.unique_id} utility score: {utility_function(fuel_saving - highest_bid, fuel_saving, delay, behavior=self.flight.behavior)}, with highest bid {highest_bid}")
 
         alpha = kappa + (1 - kappa) * (min([self.flight.model.schedule.steps, end_time]) / end_time)**(1/beta)
