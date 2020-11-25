@@ -20,6 +20,9 @@ from mesa import Agent
 from .airports import Airport
 from ..negotiations.greedy import do_greedy
 from ..negotiations.CNP import CNP
+from ..negotiations.english import English
+from ..negotiations.vickrey import Vickrey
+from ..miscellaneous import calc_distance, utility_function, calc_angle, calc_middle_point, calc_vector
 from ..negotiations.japanese import Japanese
 from ..miscellaneous import calc_distance, utility_function, calc_middle_point
 
@@ -84,30 +87,29 @@ class Flight(Agent):
         # Performance indicators
         self.planned_fuel = calc_distance(self.pos, self.destination)
         self.model.total_planned_fuel += self.planned_fuel
-        self.estimated_fuel_saved = 0 #
+        self.estimated_fuel_saved = 0  #
         self.real_fuel_saved = None
         self.distance_in_formation = 0  ##
-        self.formation_size = 0 ##
+        self.formation_size = 0  ##
         self.planned_flight_time = calc_distance(self.pos, self.destination) / self.speed
         self.scheduled_arrival = self.departure_time + self.planned_flight_time
         # self.estimated_flight_time = 0 #
         # self.estimated_arrival = 0 #
-        self.real_flight_time = 0 ##
-        self.real_arrival = None ##
+        self.real_flight_time = 0  ##
+        self.real_arrival = None  ##
         self.estimated_delay = 0
-        self.delay = None ##
-        self.fuel_consumption = 0   # A counter which counts the fuel consumed
-        self.deal_value = 0         # All the fuel lost or won during bidding
+        self.delay = None  ##
+        self.fuel_consumption = 0  # A counter which counts the fuel consumed
+        self.deal_value = 0  # All the fuel lost or won during bidding
         self.estimated_utility_score = 0
         self.real_utility_score = 0
 
-        self.formation_state = "no_formation"    # 0 = no formation, 1 = committed, 2 = in formation, 3 = unavailable, 4 = adding to formation
+        self.formation_state = "no_formation"  # 0 = no formation, 1 = committed, 2 = in formation, 3 = unavailable, 4 = adding to formation
 
-        self.state = "scheduled"    # Can be scheduled, flying, or arrived
+        self.state = "scheduled"  # Can be scheduled, flying, or arrived
 
         self.last_bid_expiration_time = 0
-
-
+        self.alliance = 0
 
         # =============================================================================
         #   Agents decide during initialization whether they are manager or auctioneer
@@ -124,12 +126,20 @@ class Flight(Agent):
             self.manager = 0
         elif self.model.negotiation_method == 4:
             self.manager = 0
+        elif self.model.negotiation_method == 2:
+            self.manager = 0
+        elif self.model.negotiation_method == 3:
+            self.manager = 0
         else:
             raise NotImplementedError
         self.update_role()
         # create a negotiation object if required
         if self.model.negotiation_method == 1:
             self.cnp = CNP(self)
+        if self.model.negotiation_method == 2:
+            self.english = English(self)
+        if self.model.negotiation_method == 3:
+            self.vickrey = Vickrey(self)
         if self.model.negotiation_method == 4:
             self.japanese = Japanese(self)
 
@@ -182,12 +192,14 @@ class Flight(Agent):
                 do_greedy(self)
             if self.model.negotiation_method == 1:
                 self.cnp.do_cnp()
-            # if self.model.negotiation_method == 2:
-            #     do_English(self)
-            # if self.model.negotiation_method == 3:
-            #     do_Vickrey(self)
+            if self.model.negotiation_method == 2:
+                self.english.do_english()
+            if self.model.negotiation_method == 3:
+                self.vickrey.do_Vickrey()
             if self.model.negotiation_method == 4:
                 self.japanese.do_japanese()
+
+            print(self.calc_joining_point(self))
 
 
     # =============================================================================
@@ -198,18 +210,22 @@ class Flight(Agent):
     #   !!! TODO Exc. 1.3: improve calculation joining/leaving point.!!!
     # =============================================================================
     # If individual is True, function calculates the individual fuel saving of self, instead of the savings of the full formation.
+
     def calculate_potential_fuelsavings(self, target_agent, individual=False):
         if len(self.agents_in_my_formation) == 0 and len(target_agent.agents_in_my_formation) == 0:
-            joining_point = self.calc_middle_point(self.pos, target_agent.pos)
-            leaving_point = self.calc_middle_point(self.destination, target_agent.destination)
+            joining_point = self.calc_joining_point(target_agent)
+            leaving_point = self.calc_joining_point(target_agent)
             if individual is False:
-                original_distance = calc_distance(self.pos, self.destination) + calc_distance(target_agent.pos, target_agent.destination)
+                original_distance = calc_distance(self.pos, self.destination) + calc_distance(target_agent.pos,
+                                                                                              target_agent.destination)
 
                 # We can multiply by 2 as the joining- and leaving-points are in the middle!
                 # WARNING: If you change the way the leaving- and joining-points are calculated, you should change this formula accordingly!
 
-                added_distance_agent1 = calc_distance(self.pos, joining_point) + calc_distance(leaving_point, self.destination)
-                added_distance_agent2 = calc_distance(target_agent.pos, joining_point) + calc_distance(target_agent.destination, leaving_point)
+                added_distance_agent1 = calc_distance(self.pos, joining_point) + calc_distance(leaving_point,
+                                                                                               self.destination)
+                added_distance_agent2 = calc_distance(target_agent.pos, joining_point) + calc_distance(
+                    target_agent.destination, leaving_point)
                 formation_distance = calc_distance(leaving_point, joining_point) * 2
 
                 new_total_fuel = self.model.fuel_reduction * formation_distance + added_distance_agent1 + added_distance_agent2
@@ -236,11 +252,12 @@ class Flight(Agent):
                     formation_joiner = self
                     n_agents_in_formation = len(target_agent.agents_in_my_formation) + 1
 
-                joining_point = self.calc_middle_point(formation_leader.pos, formation_joiner.pos)
+                joining_point = self.calc_joining_point(formation_leader.pos, formation_joiner.pos)
                 leaving_point = formation_leader.leaving_point
 
                 # Fuel for leader
-                new_distance_formation = calc_distance(formation_leader.pos, joining_point) + calc_distance(joining_point, leaving_point)
+                new_distance_formation = calc_distance(formation_leader.pos, joining_point) + calc_distance(
+                    joining_point, leaving_point)
                 total_fuel_formation = self.model.fuel_reduction * n_agents_in_formation * new_distance_formation
 
                 original_distance_formation = calc_distance(formation_leader.pos, leaving_point)
@@ -263,7 +280,7 @@ class Flight(Agent):
                 if len(self.agents_in_my_formation) > 0 and len(target_agent.agents_in_my_formation) == 0:
                     formation_leader = self
                     formation_joiner = target_agent
-                    joining_point = self.calc_middle_point(formation_leader.pos, formation_joiner.pos)
+                    joining_point = self.calc_joining_point(formation_leader.pos, formation_joiner.pos)
                     leaving_point = formation_leader.leaving_point
                     new_distance_formation = calc_distance(formation_leader.pos, joining_point) + calc_distance(
                         joining_point, leaving_point)
@@ -275,7 +292,7 @@ class Flight(Agent):
                 elif len(self.agents_in_my_formation) == 0 and len(target_agent.agents_in_my_formation) > 0:
                     formation_leader = target_agent
                     formation_joiner = self
-                    joining_point = self.calc_middle_point(formation_leader.pos, formation_joiner.pos)
+                    joining_point = self.calc_joining_point(formation_leader.pos, formation_joiner.pos)
                     leaving_point = formation_leader.leaving_point
                     fuel_to_joining = calc_distance(self.pos, joining_point)
                     fuel_in_formation = calc_distance(joining_point, leaving_point) * self.model.fuel_reduction
@@ -296,10 +313,9 @@ class Flight(Agent):
     # =============================================================================
     def calculate_potential_delay(self, target_agent):
         if len(self.agents_in_my_formation) == 0 and len(target_agent.agents_in_my_formation) == 0:
-            joining_point = self.calc_middle_point(self.pos, target_agent.pos)
-            leaving_point = self.calc_middle_point(self.destination, target_agent.destination)
-
-            original_time = calc_distance(self.pos, self.destination)/self.speed
+            joining_point = self.calc_joining_point(target_agent.pos)
+            leaving_point = self.calc_joining_point(target_agent.destination)
+            original_time = calc_distance(self.pos, self.destination) / self.speed
 
             # WARNING: If you change the way the leaving- and joining-points are calculated, you should change this formula accordingly!
 
@@ -310,25 +326,26 @@ class Flight(Agent):
             if len(self.agents_in_my_formation) > 0 and len(target_agent.agents_in_my_formation) == 0:
                 formation_leader = self
                 formation_joiner = target_agent
-                original_time = (calc_distance(self.pos, self.leaving_point) + calc_distance(self.leaving_point, self.destination))/self.speed
+                original_time = (calc_distance(self.pos, self.leaving_point) + calc_distance(self.leaving_point,
+                                                                                             self.destination)) / self.speed
 
             elif len(self.agents_in_my_formation) == 0 and len(target_agent.agents_in_my_formation) > 0:
                 formation_leader = target_agent
                 formation_joiner = self
                 original_time = calc_distance(self.pos, self.destination) / self.speed
 
-            joining_point = self.calc_middle_point(formation_leader.pos, formation_joiner.pos)
+            joining_point = self.calc_joining_point(formation_leader.pos, formation_joiner.pos)
             leaving_point = formation_leader.leaving_point
 
         if calc_distance(self.pos, joining_point) > 0.001:
-            joining_time = calc_distance(self.pos, joining_point)/self.calc_speed_to_joining_point(target_agent)
+            joining_time = calc_distance(self.pos, joining_point) / self.calc_speed_to_joining_point(target_agent)
         else:
             joining_time = 0
         if calc_distance(leaving_point, self.destination) > 0.001:
-            leaving_time = calc_distance(leaving_point, self.destination)/self.speed
+            leaving_time = calc_distance(leaving_point, self.destination) / self.speed
         else:
             leaving_time = 0
-        formation_time = calc_distance(leaving_point, joining_point)/self.speed
+        formation_time = calc_distance(leaving_point, joining_point) / self.speed
         new_time = formation_time + joining_time + leaving_time
 
         delay = new_time - original_time
@@ -348,9 +365,10 @@ class Flight(Agent):
     def add_to_formation(self, target_agent, bid_value, discard_received_bids=True):
         self.model.fuel_savings_closed_deals += self.calculate_potential_fuelsavings(target_agent)
 
-        if len(target_agent.agents_in_my_formation) > 0 and len(self.agents_in_my_formation) >0:
-            raise Exception("Warning, you are trying to combine multiple formations - some functions aren't ready for this ("
-                  "such as potential fuel-savings)")
+        if len(target_agent.agents_in_my_formation) > 0 and len(self.agents_in_my_formation) > 0:
+            raise Exception(
+                "Warning, you are trying to combine multiple formations - some functions aren't ready for this ("
+                "such as potential fuel-savings)")
 
         if len(target_agent.agents_in_my_formation) > 0 and len(self.agents_in_my_formation) == 0:
             raise Exception("Model isn't designed for this scenario.")
@@ -363,12 +381,12 @@ class Flight(Agent):
             # Discard all bids that have been received
             self.received_bids = []
 
-        self.joining_point = self.calc_middle_point(self.pos, target_agent.pos)
+        self.joining_point = self.calc_joining_point(self.pos, target_agent.pos)
         self.speed_to_joining = self.calc_speed_to_joining_point(target_agent)
 
         involved_agents = [self]
         for agent in self.agents_in_my_formation:
-            involved_agents.append(agent) # These are the current formation agents
+            involved_agents.append(agent)  # These are the current formation agents
 
         for agent in involved_agents:
             agent.agents_in_my_formation.append(target_agent)
@@ -443,7 +461,7 @@ class Flight(Agent):
         # auctioneers. The code itself has no functionality, but is a "check"
 
         if not self.manager and target_agent.auctioneer:
-          raise Exception("Something is going wrong")
+            raise Exception("Something is going wrong")
 
         if discard_received_bids:
             self.received_bids = []
@@ -455,7 +473,7 @@ class Flight(Agent):
             self.accepting_bids = True
 
         else:
-            self.joining_point = self.calc_middle_point(self.pos, target_agent.pos)
+            self.joining_point = self.calc_joining_point(self.pos, target_agent.pos)
 
             target_agent.joining_point = self.joining_point
             self.speed_to_joining = self.calc_speed_to_joining_point(target_agent)
@@ -480,7 +498,7 @@ class Flight(Agent):
                                                                  target_potential_fuel_saved, target_potential_delay,
                                                                  behavior=target_agent.behavior)
 
-        self.leaving_point = self.calc_middle_point(self.destination, target_agent.destination)
+        self.leaving_point = self.calc_joining_point(self.destination, target_agent.destination)
         self.agents_in_my_formation.append(target_agent)
         target_agent.agents_in_my_formation.append(self)
         target_agent.leaving_point = self.leaving_point
@@ -496,7 +514,6 @@ class Flight(Agent):
         #         calc_distance(target_agent.joining_point, target_agent.leaving_point) +
         #         calc_distance(target_agent.leaving_point, target_agent.destination)) / target_agent.speed
         # target_agent.estimated_arrival = target_agent.departure_time + target_agent.estimated_flight_time
-
 
     # =============================================================================
     #   This function finds the agents to make a bid to, and returns a list of these agents.
@@ -538,7 +555,6 @@ class Flight(Agent):
 
         # You could add code here to decommit from the current bid.
 
-
     # =========================================================================
     #   'calc_middle_point'
     #   Calculates the middle point between two geometric points a & b. 
@@ -549,8 +565,6 @@ class Flight(Agent):
     #
     #   !!! TODO Exc. 1.3: improve calculation joining/leaving point.!!!
     # =========================================================================
-    def calc_middle_point(self, a, b):
-        return [0.5 * (a[0] + b[0]), 0.5 * (a[1] + b[1])]
 
     def distance_to_destination(self, destination):
         # 
@@ -581,7 +595,8 @@ class Flight(Agent):
             # The agent only starts flying if it is at or past its departure time.
             self.state = "flying"
 
-            if self.formation_state == "in_formation" and self.distance_to_destination(self.leaving_point) <= self.speed / 2:
+            if self.formation_state == "in_formation" and self.distance_to_destination(
+                    self.leaving_point) <= self.speed / 2:
                 # If agent is in formation & close to leaving-point, leave the formation
                 self.state = "flying"
                 self.formation_state = "no_formation"
@@ -645,8 +660,8 @@ class Flight(Agent):
     # =========================================================================
     def calc_speed_to_joining_point(self, neighbor):
 
-        joining_point = self.calc_middle_point(self.pos, neighbor.pos)
-        # Am I stupid, or dist_self and dist_neighbor are literally the same in the original code?
+        joining_point = self.calc_joining_point(neighbor.pos)
+        # Am I stupid, or dist_self and are literally the same in the original code?
         dist_self = ((joining_point[0] - self.pos[0]) ** 2 + (joining_point[1] - self.pos[1]) ** 2) ** 0.5
         dist_neighbor = ((joining_point[0] - neighbor.pos[0]) ** 2 + (joining_point[1] - neighbor.pos[1]) ** 2) ** 0.5
         try:
@@ -678,3 +693,89 @@ class Flight(Agent):
                 print(dist_self, dist_neighbor)
                 print(regular_time, rest)
                 raise err
+
+    def calc_joining_point(self, target_agent):
+        # middle point between self and target location
+        mid_point1 = calc_middle_point(self.pos, target_agent.pos)
+        # middle point between self and target destination
+        mid_point2 = calc_middle_point(self.destination, target_agent.destination)
+        # original distance from current position to middle point
+        # b_magn = calc_distance(self.pos, mid_point1)
+
+        # vector a is middle point to current position
+        a_vec = calc_vector(mid_point1, self.pos)
+        # vector b is from middle point to destination middle point (same for both self and target, because middle point)
+        b_vec = calc_vector(mid_point1, mid_point2)
+        # alfa is angle between self and vector from mid point to mid point
+        alfa = calc_angle(a_vec, b_vec)
+
+        # try 40000: vary potential point B (is new meeting point)
+        unity_vector = np.array([np.sin(alfa), np.cos(alfa)])
+        # point b was meeting point in my original drawings
+        potential_b = np.zeros((100, 2))
+        route_length = np.zeros(100)
+        total_route_length = np.zeros(100)
+        route_length_target = np.zeros(100)
+
+        for i in range(100):
+            potential_b[i] = unity_vector * i
+            route_length[i] = calc_distance(self.pos, potential_b[i]) + 0.75 * calc_distance(potential_b[i], mid_point2)
+            route_length_target[i] = calc_distance(target_agent.pos, potential_b[i]) + 0.75 * calc_distance(
+                potential_b[i],
+                mid_point2)
+            total_route_length[i] = route_length[i] + route_length_target[i]
+
+        combined_list = np.column_stack((potential_b, total_route_length))
+
+        shortest_route = 10000
+        opt_joining_point = (0, 0)
+        for i in range(len(combined_list)):
+            if total_route_length[i] < shortest_route:
+                shortest_route = total_route_length[i]
+                opt_joining_point = potential_b[i]
+            else:
+                shortest_route = total_route_length[i-1]
+                opt_joining_point = potential_b[i-1]
+        return opt_joining_point
+
+    def calc_leaving_point(self, target_agent):
+        # middle point between self and target location
+        mid_point1 = calc_middle_point(self.pos, target_agent.pos)
+        # middle point between self and target destination
+        mid_point2 = calc_middle_point(self.destination, target_agent.destination)
+        # original distance from current position to middle point
+        # b_magn = calc_distance(self.pos, mid_point1)
+
+        # vector a is middle point (at end) to destination
+        a_vec = calc_vector(mid_point2, self.destination)
+        # vector b is from middle point to destination middle point (same for both self and target, because middle point)
+        b_vec = calc_vector(mid_point2, mid_point1)
+        # alfa is angle between self and vector from mid point to mid point
+        alfa = calc_angle(a_vec, b_vec)
+        # try 40000: vary potential point B (is new meeting point)
+        unity_vector = np.array([np.sin(alfa), np.cos(alfa)])
+        # point b was meeting point in my original drawings
+        potential_b = np.zeros((100, 2))
+        route_length = np.zeros(100)
+        total_route_length = np.zeros(100)
+        route_length_target = np.zeros(100)
+
+        for i in range(100):
+            potential_b[i] = unity_vector * i
+            route_length[i] = calc_distance(self.destination, potential_b[i]) + 0.75 * calc_distance(potential_b[i], mid_point1)
+            route_length_target[i] = calc_distance(target_agent.des, potential_b[i]) + 0.75 * calc_distance(
+                potential_b[i],
+                mid_point1)
+            total_route_length[i] = route_length[i] + route_length_target[i]
+
+        combined_list = np.column_stack((potential_b, total_route_length))
+
+        shortest_route = 10000
+        opt_leaving_point = (0, 0)
+        for i in range(len(combined_list)):
+            if total_route_length[i] < shortest_route:
+                shortest_route = total_route_length[i]
+                opt_leaving_point = potential_b[i]
+
+        #print(opt_leaving_point)
+        return opt_leaving_point
