@@ -6,10 +6,14 @@ def calc_vector(p1, p2):
 
 
 def calc_angle(a, b):
+
     dot_product = a[0] * b[0] + a[1] * b[1]
     magn_vec_a = np.sqrt(a[0] ** 2 + a[1] ** 2)
     magn_vec_b = np.sqrt(b[0] ** 2 + b[1] ** 2)
-    angle = np.arccos(dot_product / (magn_vec_a * magn_vec_b))
+    print(magn_vec_a)
+    print(magn_vec_b)
+    cos_angle = dot_product / (magn_vec_a * magn_vec_b)
+    angle = np.arccos(cos_angle)
     return angle
 
 

@@ -199,7 +199,7 @@ class Flight(Agent):
             if self.model.negotiation_method == 4:
                 self.japanese.do_japanese()
 
-            print(self.calc_joining_point(self))
+#            print(self.calc_joining_point(self))
 
 
     # =============================================================================
@@ -213,8 +213,8 @@ class Flight(Agent):
 
     def calculate_potential_fuelsavings(self, target_agent, individual=False):
         if len(self.agents_in_my_formation) == 0 and len(target_agent.agents_in_my_formation) == 0:
-            joining_point = self.calc_joining_point(target_agent)
-            leaving_point = self.calc_joining_point(target_agent)
+            joining_point = self.calc_joining_point(target_agent.pos, target_agent.destination)
+            leaving_point = self.calc_joining_point(target_agent.pos, target_agent.destination)
             if individual is False:
                 original_distance = calc_distance(self.pos, self.destination) + calc_distance(target_agent.pos,
                                                                                               target_agent.destination)
@@ -313,8 +313,8 @@ class Flight(Agent):
     # =============================================================================
     def calculate_potential_delay(self, target_agent):
         if len(self.agents_in_my_formation) == 0 and len(target_agent.agents_in_my_formation) == 0:
-            joining_point = self.calc_joining_point(target_agent)
-            leaving_point = self.calc_leaving_point(target_agent)
+            joining_point = self.calc_joining_point(target_agent.pos, target_agent.destination)
+            leaving_point = self.calc_leaving_point(target_agent.pos, target_agent.destination)
             original_time = calc_distance(self.pos, self.destination) / self.speed
 
             # WARNING: If you change the way the leaving- and joining-points are calculated, you should change this formula accordingly!
@@ -660,22 +660,22 @@ class Flight(Agent):
     # =========================================================================
     def calc_speed_to_joining_point(self, neighbor):
 
-        joining_point = self.calc_joining_point(neighbor.pos)
+        joining_point = self.calc_joining_point(neighbor.pos, neighbor.destination)
         # Am I stupid, or dist_self and are literally the same in the original code?
         dist_self = ((joining_point[0] - self.pos[0]) ** 2 + (joining_point[1] - self.pos[1]) ** 2) ** 0.5
         dist_neighbor = ((joining_point[0] - neighbor.pos[0]) ** 2 + (joining_point[1] - neighbor.pos[1]) ** 2) ** 0.5
-        try:
-            if abs(1 - dist_self / dist_neighbor) > 0.001:
-                # If this exception is thrown, it means that the joining point is
-                # not at equal distances from both aircraft.
-                raise Exception("Joining point != middle point")
-        except FloatingPointError as err:
-            # What if self and neighbor take off from the same airport at the same time, and thus dist_self and dist_neighbor are 0?
-            if dist_self == 0 and dist_neighbor == 0:
-                pass
-            else:
-                print(dist_self, dist_neighbor)
-                raise err
+        # try:
+        #     if abs(1 - dist_self / dist_neighbor) > 0.001:
+        #         # If this exception is thrown, it means that the joining point is
+        #         # not at equal distances from both aircraft.
+        #         raise Exception("Joining point != middle point")
+        # except FloatingPointError as err:
+        #     # What if self and neighbor take off from the same airport at the same time, and thus dist_self and dist_neighbor are 0?
+        #     if dist_self == 0 and dist_neighbor == 0:
+        #         pass
+        #     else:
+        #         print(dist_self, dist_neighbor)
+        #         raise err
         try:
             rest = dist_self % self.speed
             regular_time = math.floor(dist_self / self.speed)
@@ -694,89 +694,96 @@ class Flight(Agent):
                 print(regular_time, rest)
                 raise err
 
-    def calc_joining_point(self, target_agent):
-        # middle point between self and target location
-        mid_point1 = calc_middle_point(self.pos, target_agent.pos)
-        # middle point between self and target destination
-        mid_point2 = calc_middle_point(self.destination, target_agent.destination)
-        # original distance from current position to middle point
-        # b_magn = calc_distance(self.pos, mid_point1)
+    def calc_joining_point(self, target_agent_pos, target_agent_des):
+        margin = 1
+        if abs(self.pos[0] - target_agent_pos[0]) < margin and abs(self.pos[1] - target_agent_pos[1]) < margin:
+            opt_joining_point = self.pos
+            return opt_joining_point
+        else:
+            # middle point between self and target location
+            mid_point1 = calc_middle_point(self.pos, target_agent_pos)
+            # middle point between self and target destination
+            mid_point2 = calc_middle_point(self.destination, target_agent_des)
+            # original distance from current position to middle point
+            # b_magn = calc_distance(self.pos, mid_point1)
+            # vector a is middle point to current position
+            a_vec = calc_vector(mid_point1, self.pos)
+            # vector b is from middle point to destination middle point (same for both self and target, because middle point)
+            b_vec = calc_vector(mid_point1, mid_point2)
+            # alfa is angle between self and vector from mid point to mid point
+            alfa = calc_angle(a_vec, b_vec)
 
-        # vector a is middle point to current position
-        a_vec = calc_vector(mid_point1, self.pos)
-        # vector b is from middle point to destination middle point (same for both self and target, because middle point)
-        b_vec = calc_vector(mid_point1, mid_point2)
-        # alfa is angle between self and vector from mid point to mid point
-        alfa = calc_angle(a_vec, b_vec)
+            # try 40000: vary potential point B (is new meeting point)
+            unity_vector = np.array([np.sin(alfa), np.cos(alfa)])
+            # point b was meeting point in my original drawings
+            potential_b = np.zeros((100, 2))
+            route_length = np.zeros(100)
+            total_route_length = np.zeros(100)
+            route_length_target = np.zeros(100)
 
-        # try 40000: vary potential point B (is new meeting point)
-        unity_vector = np.array([np.sin(alfa), np.cos(alfa)])
-        # point b was meeting point in my original drawings
-        potential_b = np.zeros((100, 2))
-        route_length = np.zeros(100)
-        total_route_length = np.zeros(100)
-        route_length_target = np.zeros(100)
+            for i in range(100):
+                potential_b[i] = unity_vector * i
+                route_length[i] = calc_distance(self.pos, potential_b[i]) + 0.75 * calc_distance(potential_b[i], mid_point2)
+                route_length_target[i] = calc_distance(target_agent_pos, potential_b[i]) + 0.75 * calc_distance(
+                    potential_b[i],
+                    mid_point2)
+                total_route_length[i] = route_length[i] + route_length_target[i]
 
-        for i in range(100):
-            potential_b[i] = unity_vector * i
-            route_length[i] = calc_distance(self.pos, potential_b[i]) + 0.75 * calc_distance(potential_b[i], mid_point2)
-            route_length_target[i] = calc_distance(target_agent.pos, potential_b[i]) + 0.75 * calc_distance(
-                potential_b[i],
-                mid_point2)
-            total_route_length[i] = route_length[i] + route_length_target[i]
+            combined_list = np.column_stack((potential_b, total_route_length))
 
-        combined_list = np.column_stack((potential_b, total_route_length))
+            shortest_route = 10000
+            opt_joining_point = (0, 0)
+            for i in range(len(combined_list)):
+                if total_route_length[i] < shortest_route:
+                    shortest_route = total_route_length[i]
+                    opt_joining_point = potential_b[i]
+                else:
+                    shortest_route = total_route_length[i-1]
+                    opt_joining_point = potential_b[i-1]
+            return opt_joining_point
 
-        shortest_route = 10000
-        opt_joining_point = (0, 0)
-        for i in range(len(combined_list)):
-            if total_route_length[i] < shortest_route:
-                shortest_route = total_route_length[i]
-                opt_joining_point = potential_b[i]
-            else:
-                shortest_route = total_route_length[i-1]
-                opt_joining_point = potential_b[i-1]
-        print(opt_joining_point)
-        return opt_joining_point
+    def calc_leaving_point(self, target_agent_pos, target_agent_des):
+        margin = 1
+        if abs(self.destination[0] - target_agent_des[0]) < margin and abs(self.destination[1] - target_agent_des[1]) < margin:
+            opt_leaving_point = self.pos
+            return opt_leaving_point
+        else:
+            # middle point between self and target location
+            mid_point1 = calc_middle_point(self.pos, target_agent_pos)
+            # middle point between self and target destination
+            mid_point2 = calc_middle_point(self.destination, target_agent_des)
+            # original distance from current position to middle point
+            # b_magn = calc_distance(self.pos, mid_point1)
+            # vector a is middle point (at end) to destination
+            a_vec = calc_vector(mid_point2, self.destination)
+            # vector b is from middle point to destination middle point (same for both self and target, because middle point)
+            b_vec = calc_vector(mid_point2, mid_point1)
+            # alfa is angle between self and vector from mid point to mid point
+            alfa = calc_angle(a_vec, b_vec)
+            # try 40000: vary potential point B (is new meeting point)
+            unity_vector = np.array([np.sin(alfa), np.cos(alfa)])
+            # point b was meeting point in my original drawings
+            potential_b = np.zeros((100, 2))
+            route_length = np.zeros(100)
+            total_route_length = np.zeros(100)
+            route_length_target = np.zeros(100)
 
-    def calc_leaving_point(self, target_agent):
-        # middle point between self and target location
-        mid_point1 = calc_middle_point(self.pos, target_agent.pos)
-        # middle point between self and target destination
-        mid_point2 = calc_middle_point(self.destination, target_agent.destination)
-        # original distance from current position to middle point
-        # b_magn = calc_distance(self.pos, mid_point1)
+            for i in range(100):
+                potential_b[i] = unity_vector * i
+                route_length[i] = calc_distance(self.destination, potential_b[i]) + 0.75 * calc_distance(potential_b[i], mid_point1)
+                route_length_target[i] = calc_distance(target_agent_des, potential_b[i]) + 0.75 * calc_distance(
+                    potential_b[i],
+                    mid_point1)
+                total_route_length[i] = route_length[i] + route_length_target[i]
 
-        # vector a is middle point (at end) to destination
-        a_vec = calc_vector(mid_point2, self.destination)
-        # vector b is from middle point to destination middle point (same for both self and target, because middle point)
-        b_vec = calc_vector(mid_point2, mid_point1)
-        # alfa is angle between self and vector from mid point to mid point
-        alfa = calc_angle(a_vec, b_vec)
-        # try 40000: vary potential point B (is new meeting point)
-        unity_vector = np.array([np.sin(alfa), np.cos(alfa)])
-        # point b was meeting point in my original drawings
-        potential_b = np.zeros((100, 2))
-        route_length = np.zeros(100)
-        total_route_length = np.zeros(100)
-        route_length_target = np.zeros(100)
+            combined_list = np.column_stack((potential_b, total_route_length))
 
-        for i in range(100):
-            potential_b[i] = unity_vector * i
-            route_length[i] = calc_distance(self.destination, potential_b[i]) + 0.75 * calc_distance(potential_b[i], mid_point1)
-            route_length_target[i] = calc_distance(target_agent.des, potential_b[i]) + 0.75 * calc_distance(
-                potential_b[i],
-                mid_point1)
-            total_route_length[i] = route_length[i] + route_length_target[i]
+            shortest_route = 10000
+            opt_leaving_point = (0, 0)
+            for i in range(len(combined_list)):
+                if total_route_length[i] < shortest_route:
+                    shortest_route = total_route_length[i]
+                    opt_leaving_point = potential_b[i]
 
-        combined_list = np.column_stack((potential_b, total_route_length))
-
-        shortest_route = 10000
-        opt_leaving_point = (0, 0)
-        for i in range(len(combined_list)):
-            if total_route_length[i] < shortest_route:
-                shortest_route = total_route_length[i]
-                opt_leaving_point = potential_b[i]
-
-        #print(opt_leaving_point)
-        return opt_leaving_point
+            #print(opt_leaving_point)
+            return opt_leaving_point
