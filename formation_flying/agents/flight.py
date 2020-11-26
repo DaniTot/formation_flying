@@ -313,8 +313,8 @@ class Flight(Agent):
     # =============================================================================
     def calculate_potential_delay(self, target_agent):
         if len(self.agents_in_my_formation) == 0 and len(target_agent.agents_in_my_formation) == 0:
-            joining_point = self.calc_joining_point(target_agent.pos)
-            leaving_point = self.calc_joining_point(target_agent.destination)
+            joining_point = self.calc_joining_point(target_agent)
+            leaving_point = self.calc_leaving_point(target_agent)
             original_time = calc_distance(self.pos, self.destination) / self.speed
 
             # WARNING: If you change the way the leaving- and joining-points are calculated, you should change this formula accordingly!
@@ -736,6 +736,7 @@ class Flight(Agent):
             else:
                 shortest_route = total_route_length[i-1]
                 opt_joining_point = potential_b[i-1]
+        print(opt_joining_point)
         return opt_joining_point
 
     def calc_leaving_point(self, target_agent):
