@@ -101,7 +101,7 @@ class FormationFlying(Model):
 
         self.datacollector = DataCollector(model_reporter_parameters, agent_reporter_parameters)
 
-        print("Model initiated")
+        print("Model initiated", self.negotiation_method)
         
     # =========================================================================
     #  Create all flights, the flights are not all initialized at the same time,

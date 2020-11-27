@@ -15,6 +15,7 @@
 
 import numpy as np
 from random import choices
+from matplotlib import pyplot as plt
 
 from mesa import Agent
 from .airports import Airport
@@ -233,8 +234,11 @@ class Flight(Agent):
                 fuel_savings = original_distance - new_total_fuel
             else:
                 original_distance = calc_distance(self.pos, self.destination)
+                # print("original distance", original_distance)
                 added_distance = calc_distance(self.pos, joining_point) + calc_distance(leaving_point, self.destination)
+                # print(f"added distance {added_distance} = {calc_distance(self.pos, joining_point)} + {calc_distance(leaving_point, self.destination)}")
                 formation_distance = calc_distance(leaving_point, joining_point)
+                # print("formation distance", formation_distance)
                 new_total_fuel = self.model.fuel_reduction * formation_distance + added_distance
                 fuel_savings = original_distance - new_total_fuel
 
@@ -301,7 +305,7 @@ class Flight(Agent):
                     new_fuel = fuel_to_joining + fuel_in_formation + fuel_from_leaving
                     original_fuel = calc_distance(formation_joiner.pos, formation_joiner.destination)
                     fuel_savings = original_fuel - new_fuel
-        print('fuel savings', fuel_savings)
+        # print('fuel savings', fuel_savings)
         return fuel_savings
 
 
@@ -665,35 +669,48 @@ class Flight(Agent):
         # Am I stupid, or dist_self and are literally the same in the original code?
         dist_self = ((joining_point[0] - self.pos[0]) ** 2 + (joining_point[1] - self.pos[1]) ** 2) ** 0.5
         dist_neighbor = ((joining_point[0] - neighbor.pos[0]) ** 2 + (joining_point[1] - neighbor.pos[1]) ** 2) ** 0.5
+        try:
+            if dist_self > 0.0 and dist_neighbor > 0.0:
+                # Calculate the speed of each airplane, such that they reach the joining point simultaniously.
+                # This means the speed to joining point must be proportional to the distance to the joining point
+                # dist_self = time * speed_self ; dist_neighbor = time * speed_neighbor
+                # => dist_self / dist_neighbor = speed_self / speed_neighbor
+                speed_fraction = dist_self/dist_neighbor
+                # Keep the average of the two speeds to the regular speed: (speed_self + speed_neighbor)/2 = self.speed
+                speed_self = self.speed * 2 * speed_fraction / (1 + speed_fraction)
+                speed_neighbor = speed_self / speed_fraction
+                assert round(dist_self / speed_self, 3) == round(dist_neighbor / speed_neighbor, 3), f"{dist_self} / {speed_self} = {dist_neighbor} / {speed_neighbor} => {round(dist_self / speed_self, 3)} = {round(dist_neighbor / speed_neighbor, 3)}"
+                assert speed_self > 0 and speed_neighbor > 0, f"{speed_self}, {speed_neighbor}\n{dist_self}, {dist_neighbor}\n{1-speed_fraction}"
+                return speed_self
+            elif round(dist_self, 3) == 0.0:
+                return 0
+            elif round(dist_neighbor, 3) == 0.0:
+                return self.speed
+            else:
+                raise Exception(f"What the fuck? {dist_self}, {dist_neighbor}")
+        except FloatingPointError as err:
+            print(dist_self)
+            print(dist_neighbor)
+            print(speed_fraction)
+            print(speed_self)
+            raise err
         # try:
-        #     if abs(1 - dist_self / dist_neighbor) > 0.001:
-        #         # If this exception is thrown, it means that the joining point is
-        #         # not at equal distances from both aircraft.
-        #         raise Exception("Joining point != middle point")
+        #     rest = dist_self % self.speed
+        #     regular_time = math.floor(dist_self / self.speed)
+        #     if rest > 0:
+        #         time = regular_time + 1
+        #     elif rest == 0:
+        #         time = regular_time
+        #     return (dist_self / time)
         # except FloatingPointError as err:
         #     # What if self and neighbor take off from the same airport at the same time, and thus dist_self and dist_neighbor are 0?
         #     if dist_self == 0 and dist_neighbor == 0:
-        #         pass
+        #         return 0.0
         #     else:
+        #         print(self.pos, neighbor.pos)
         #         print(dist_self, dist_neighbor)
+        #         print(regular_time, rest)
         #         raise err
-        try:
-            rest = dist_self % self.speed
-            regular_time = math.floor(dist_self / self.speed)
-            if rest > 0:
-                time = regular_time + 1
-            elif rest == 0:
-                time = regular_time
-            return (dist_self / time)
-        except FloatingPointError as err:
-            # What if self and neighbor take off from the same airport at the same time, and thus dist_self and dist_neighbor are 0?
-            if dist_self == 0 and dist_neighbor == 0:
-                return 0.0
-            else:
-                print(self.pos, neighbor.pos)
-                print(dist_self, dist_neighbor)
-                print(regular_time, rest)
-                raise err
 
     def calc_joining_point(self, target_agent_pos, target_agent_des):
         margin = 1

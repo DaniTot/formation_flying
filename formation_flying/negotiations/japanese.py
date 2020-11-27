@@ -29,7 +29,7 @@ class Japanese:
         self.min_reserve_utility_frac = 0.7
 
         # Properties
-        self.auction_joining_timeframe = 10  # Time available for contractors to enter the auction before it begins
+        self.auction_joining_timeframe = 5  # Time available for contractors to enter the auction before it begins
         self.auction_start_time = None
         # TODO: consider implementing a more elaborate reserve price system
         self.reserve_price = 0
@@ -125,7 +125,7 @@ class Japanese:
                     # Remove the expired calls
                     elif start_time <= self.flight.model.schedule.steps:
                         removed = self.open_auctions.pop(i)
-                        print(f"Removed: {removed[0].unique_id}'s auction due {removed[1]} exceeded current time {self.flight.model.schedule.steps}")
+                        # print(f"Removed: {removed[0].unique_id}'s auction due {removed[1]} exceeded current time {self.flight.model.schedule.steps}")
                 # print(f"Contractor {self.flight.unique_id} has {len(self.open_auctions)} open calls.")
 
             if self.favored_auction["manager"] is not None:
@@ -179,7 +179,7 @@ class Japanese:
             self.auction_start_time = self.flight.model.schedule.steps + self.auction_joining_timeframe
             self.reserve_price = self.set_reserve_price(dynamic_price=True)
             self.display_price = self.reserve_price
-            print(f"Flight {self.flight.unique_id} scheduled auction to {self.auction_start_time}, and display price {self.display_price}")
+            print(f"Flight {self.flight.unique_id} scheduled auction to {self.auction_start_time} with display price {self.display_price}")
         for neighbor in self.flight.model.space.get_neighbors(pos=self.flight.pos,
                                                               radius=self.flight.communication_range,
                                                               include_center=True):
@@ -203,7 +203,7 @@ class Japanese:
     def increase_price(self):
         # Increase the show price by 10% of the reserve price
         self.display_price += self.reserve_price*0.3
-        print(f"Flight {self.flight.unique_id} increases display price to {self.display_price}")
+        # print(f"Flight {self.flight.unique_id} increases display price to {self.display_price}")
         return
 
     def exit_auction(self, bidder, exit_bid):
@@ -219,7 +219,7 @@ class Japanese:
         if self.flight.model.schedule.steps < self.auction_start_time:
             if bidder not in self.contractors_dropped_out:
                 self.contractors_in_auction.append(bidder)
-                print(f"{bidder.flight.agent_type}, {bidder.flight.unique_id}, enters auction of {self.flight.unique_id}")
+                # print(f"{bidder.agent_type}, {bidder.unique_id}, enters auction of {self.flight.unique_id}")
 
     def demote(self):
         self.flight.manager = 0
