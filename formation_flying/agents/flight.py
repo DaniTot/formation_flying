@@ -74,6 +74,7 @@ class Flight(Agent):
         self.origin_pos = np.array(pos)
         self.heading = [self.destination[0] - self.pos[0], self.destination[1] - self.pos[1]]
         self.communication_range = communication_range
+        self.speed_to_joining = None
 
         self.behavior = choices(["budget", "green", "express", "balanced"], weights=behavior_wights, k=1)[0]
 
@@ -322,17 +323,16 @@ class Flight(Agent):
             leaving_point = self.calc_leaving_point(target_agent.pos, target_agent.destination)
             original_time = calc_distance(self.pos, self.destination) / self.speed
 
-            # WARNING: If you change the way the leaving- and joining-points are calculated, you should change this formula accordingly!
-
         else:
             if len(self.agents_in_my_formation) > 0 and len(target_agent.agents_in_my_formation) > 0:
                 raise Exception("This function is not advanced enough to handle two formations joining")
 
-            if len(self.agents_in_my_formation) > 0 and len(target_agent.agents_in_my_formation) == 0:
+            elif len(self.agents_in_my_formation) > 0 and len(target_agent.agents_in_my_formation) == 0:
                 formation_leader = self
                 formation_joiner = target_agent
                 original_time = (calc_distance(self.pos, self.leaving_point) + calc_distance(self.leaving_point,
-                                                                                             self.destination)) / self.speed
+                                                                                             self.destination)
+                                 ) / self.speed
 
             elif len(self.agents_in_my_formation) == 0 and len(target_agent.agents_in_my_formation) > 0:
                 formation_leader = target_agent
@@ -342,8 +342,12 @@ class Flight(Agent):
             joining_point = self.calc_joining_point(formation_leader.pos, formation_joiner.pos)
             leaving_point = formation_leader.leaving_point
 
+        if self.speed_to_joining is None:
+            local_speed_to_joining = self.calc_speed_to_joining_point(target_agent)
+        else:
+            local_speed_to_joining = self.speed_to_joining
         if calc_distance(self.pos, joining_point) > 0.001:
-            joining_time = calc_distance(self.pos, joining_point) / self.calc_speed_to_joining_point(target_agent)
+            joining_time = calc_distance(self.pos, joining_point) / local_speed_to_joining
         else:
             joining_time = 0
         if calc_distance(leaving_point, self.destination) > 0.001:
@@ -465,7 +469,7 @@ class Flight(Agent):
         # You can use the following error message if you want to ensure that managers can only start formations with
         # auctioneers. The code itself has no functionality, but is a "check"
 
-        if not self.manager and target_agent.auctioneer:
+        if self.agents_in_my_formation and target_agent.auctioneer:
             raise Exception("Something is going wrong")
 
         if discard_received_bids:
@@ -531,7 +535,7 @@ class Flight(Agent):
         candidates = []
         for agent in neighbors:
             if type(agent) is Flight:
-                if agent.accepting_bids == 1:
+                if agent.formation_state == "no_formation" or agent.formation_state == "in_formation":
                     candidates.append(agent)
         return candidates
 

@@ -145,7 +145,20 @@ class Japanese:
             fuel_saving = self.flight.calculate_potential_fuelsavings(self.current_auction, individual=True)
             delay = self.flight.calculate_potential_delay(self.current_auction)
             bidding_value = self.current_auction.japanese.display_price
-            profit = fuel_saving - bidding_value
+            try:
+                profit = fuel_saving - bidding_value
+            except TypeError as err:
+                print(self.flight.unique_id)
+                print(bidding_value)
+                print(self.current_auction.unique_id)
+                print(self.current_auction.formation_state)
+                print(self.current_auction.state)
+                print(self.current_auction.japanese.contractors_in_auction)
+                print(self.current_auction.japanese.contractors_dropped_out)
+                print(self.current_auction.japanese.display_price)
+                print(self.current_auction.japanese.leading_exiting_bidder)
+                print(self.current_auction.japanese.self.auction_start_time)
+                raise err
             # Recalculate the minimum utility that can be accepted
             max_utility = utility_function(fuel_saving, fuel_saving, delay, behavior=self.flight.behavior)
             min_utility = max_utility * self.min_bid_utility_frac

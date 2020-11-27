@@ -31,7 +31,7 @@ class CNP:
         # Only evaluate role from the second step onwards
         if self.first_step is True:
             self.first_step = False
-        elif len(self.received_neighbor_counts) > 0:
+        else:
             self.evaluate_role()
         # Role specific activities
         if self.flight.manager == 1:
@@ -152,44 +152,54 @@ class CNP:
         # Remove accepted bid from pending_bids
         if len(accepted_bids) > 0:
             self.pending_bids.pop(accepted_bids[0])
-        assert len(self.pending_bids) == 0, self.pending_bids
+        assert len(self.pending_bids) == 0, (list(self.pending_bids.keys())[0].unique_id, self.pending_bids)
 
-        # Make a bid.
-        # Since bids are binding, there may only be one bid at a time, so only consider the most profitable manager
-        if self.flight.formation_state is "no_formation" and len(self.managers_calling) >= 1:
-            utility_score = 0
-            selected_manager = None
-            selected_bid = 0
-            for i, [manager, end_time] in enumerate(self.managers_calling):
-                if manager.accepting_bids == 1 and end_time >= self.flight.model.schedule.steps:
-                    fuel_saving = self.flight.calculate_potential_fuelsavings(manager, individual=True)
-                    delay = self.flight.calculate_potential_delay(manager)
-                    bidding_value = self.bidding_strategy(fuel_saving, delay, end_time)
-                    profit = fuel_saving - bidding_value
-                    if utility_function(profit, fuel_saving, delay, behavior=self.flight.behavior) > utility_score:
-                        utility_score = utility_function(profit, fuel_saving, delay, behavior=self.flight.behavior)
-                        selected_manager = manager
-                        selected_bid = bidding_value
-                # Remove the expired calls
-                elif end_time < self.flight.model.schedule.steps:
-                    self.managers_calling.pop(i)
-            print(f"Contractor {self.flight.unique_id} has {len(self.managers_calling)} open calls.")
+        # Promote some contractors randomly to managers, in order to allow for formations that otherwise wouldn't form.
+        if choices([True, False], weights=[1, 3*self.negotiation_window], k=1)[0]:
+            self.flight.manager = 1
+            print(self.flight.agent_type, self.flight.unique_id, "becomes manager by chance.")
+            # Reset the relevant lists, and update the role
+            self.free_flights_in_reach = []
+            self.received_neighbor_counts = []
+            self.flight.update_role()
 
-            if selected_manager is not None:
-                # TODO: Implement bid expiration date. Currently None.
-                self.flight.make_bid(selected_manager, selected_bid, True, None)
-                print(self.flight.agent_type, self.flight.unique_id, "makes bid to", selected_manager.unique_id, "with value of", selected_bid, "and potential utility of", utility_score)
-                # Save the bid that was made, so it can be used in the bidding strategy
-                self.pending_bids[selected_manager] = {"bid": selected_bid,
-                                                       "time": self.flight.model.schedule.steps,
-                                                       "accepted": None}
+        if self.flight.manager == 0:
+            # Make a bid.
+            # Since bids are binding, there may only be one bid at a time, so only consider the most profitable manager
+            if self.flight.formation_state is "no_formation" and len(self.managers_calling) >= 1:
+                utility_score = 0
+                selected_manager = None
+                selected_bid = 0
+                for i, [manager, end_time] in enumerate(self.managers_calling):
+                    if manager.accepting_bids == 1 and end_time >= self.flight.model.schedule.steps:
+                        fuel_saving = self.flight.calculate_potential_fuelsavings(manager, individual=True)
+                        delay = self.flight.calculate_potential_delay(manager)
+                        bidding_value = self.bidding_strategy(fuel_saving, delay, end_time)
+                        profit = fuel_saving - bidding_value
+                        if utility_function(profit, fuel_saving, delay, behavior=self.flight.behavior) > utility_score:
+                            utility_score = utility_function(profit, fuel_saving, delay, behavior=self.flight.behavior)
+                            selected_manager = manager
+                            selected_bid = bidding_value
+                    # Remove the expired calls
+                    elif end_time < self.flight.model.schedule.steps:
+                        self.managers_calling.pop(i)
+                print(f"Contractor {self.flight.unique_id} has {len(self.managers_calling)} open calls.")
 
-        # If there are no currently pending bids, check if contractor agent can become a manager
-        elif self.flight.formation_state is "no_formation" and len(self.pending_bids) == 0:
-            # Do not apply for manager, once close to destination, as you wouldn't be able to call for contract anyway
-            if not calc_distance(self.flight.pos, self.flight.destination) / self.flight.speed <= self.negotiation_window:
-                print(f"Contractor {self.flight.unique_id} applying for manager")
-                self.apply_for_manager()
+                if selected_manager is not None:
+                    # TODO: Implement bid expiration date. Currently None.
+                    self.flight.make_bid(selected_manager, selected_bid, True, None)
+                    print(self.flight.agent_type, self.flight.unique_id, "makes bid to", selected_manager.unique_id, "with value of", selected_bid, "and potential utility of", utility_score)
+                    # Save the bid that was made, so it can be used in the bidding strategy
+                    self.pending_bids[selected_manager] = {"bid": selected_bid,
+                                                           "time": self.flight.model.schedule.steps,
+                                                           "accepted": None}
+
+            # If there are no currently pending bids, check if contractor agent can become a manager
+            elif self.flight.formation_state is "no_formation" and len(self.pending_bids) == 0:
+                # Do not apply for manager, once close to destination, as you wouldn't be able to call for contract anyway
+                if not calc_distance(self.flight.pos, self.flight.destination) / self.flight.speed <= self.negotiation_window:
+                    print(f"Contractor {self.flight.unique_id} applying for manager")
+                    self.apply_for_manager()
 
     def bidding_strategy(self, fuel_saving, delay, end_time, min_utility_frac=0.50, kappa=0, beta=1):
         # Time-dependent tactics
@@ -247,17 +257,10 @@ class CNP:
                 manager_taken = True
                 print(self.flight.agent_type, self.flight.unique_id, f"stays contractor, {neighbor.unique_id} is already manager.")
                 break
-        if len(self.free_flights_in_reach) >= max(self.received_neighbor_counts) and manager_taken is False:
+        if len(self.received_neighbor_counts) > 0 and len(self.free_flights_in_reach) >= max(self.received_neighbor_counts) and manager_taken is False:
             self.flight.manager = 1
             print(self.flight.agent_type, self.flight.unique_id, "becomes manager")
-        else:
-            # Promote some contractors randomly to managers, in order to allow for formations that otherwise wouldn't form.
-            if choices([True, False], weights=[1, 3*self.negotiation_window], k=1)[0]:
-                self.flight.manager = 1
-                print(self.flight.agent_type, self.flight.unique_id, "becomes manager by chance.")
-            else:
-                self.flight.manager = 0
-                print(self.flight.agent_type, self.flight.unique_id, "stays contractor")
+
         # After evaluation, reset the relevant lists, and update the role
         self.free_flights_in_reach = []
         self.received_neighbor_counts = []

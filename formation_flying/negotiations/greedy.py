@@ -12,23 +12,20 @@ def do_greedy(flight):
         raise Exception("The object passed to the greedy protocol has no departure time, therefore it seems that it is not a flight.")
 
     # If the agent is not yet in a formation, start finding candidates.
-    if flight.formation_state == "no_formation":
+    if flight.formation_state == "no_formation" and flight.manager == 0:
         formation_targets = flight.find_greedy_candidate()
         
         # If there are candidates, start a formation with the first candidate 
         # with positive potential fuelsavings.
-        if formation_targets != None:
-            
+        if formation_targets is not None:
             for agent in formation_targets:
-                
-                if flight.calculate_potential_fuelsavings(agent) > 0:
-                    formation_target = agent
-                    formation_savings = flight.calculate_potential_fuelsavings(agent)
-                    
-                    if len(flight.agents_in_my_formation) > 0:
-                        flight.add_to_formation(formation_target, formation_savings, discard_received_bids=True)
-                    else:
-                        flight.start_formation(formation_target, formation_savings, discard_received_bids=True)
-                    break
-                
-        
+                if len(agent.agents_in_my_formation) > 0:
+                    if flight.calculate_potential_fuelsavings(agent) > 0:
+                        formation_savings = flight.calculate_potential_fuelsavings(agent)
+                        agent.add_to_formation(flight, formation_savings, discard_received_bids=True)
+                        break
+                elif len(agent.agents_in_my_formation) == 0:
+                    if flight.calculate_potential_fuelsavings(agent) > 0:
+                        formation_savings = flight.calculate_potential_fuelsavings(agent)
+                        flight.start_formation(agent, formation_savings, discard_received_bids=True)
+                        break

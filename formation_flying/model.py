@@ -181,7 +181,7 @@ class FormationFlying(Model):
         if abs(total_deal_value) > 0.001:
             raise Exception("Deal value is {}".format(total_deal_value))
 
-        print("\nStep", self.schedule.steps)
+        # print("\nStep", self.schedule.steps)
         self.schedule.step()
         self.datacollector.collect(self)
 
