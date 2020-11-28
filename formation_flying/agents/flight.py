@@ -160,7 +160,10 @@ class Flight(Agent):
 
     def update_role(self):
         if self.manager:
-            self.accepting_bids = 1
+            if self.formation_state not in ("committed", "adding_to_formation"):
+                self.accepting_bids = 1
+            else:
+                self.accepting_bids = 0
         else:
             self.accepting_bids = 0
         self.auctioneer = abs(1 - self.manager)

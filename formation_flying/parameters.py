@@ -39,7 +39,7 @@ max_steps = 10000
 n_iterations = 5
 
 model_params = {
-    "n_flights": 10,
+    "n_flights": 20,
     "n_origin_airports": 20,
     "n_destination_airports": 20,
     # "communication_range": 200, #[km]

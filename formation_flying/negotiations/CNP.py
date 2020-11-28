@@ -51,6 +51,7 @@ class CNP:
             else:
                 # By setting the bid end time to the past, the manager will be demoted to contractor at the end of its turn
                 self.bidding_end_time = self.flight.model.schedule.steps - 1
+                self.flight.accepting_bids = 0
 
         # Select a contractor
         # Find the highest bid
@@ -61,7 +62,7 @@ class CNP:
                 # Change the validity to false, so every bid is considered only once.
                 bid["validity"] = False
         if len(current_bids) > 0:
-            assert self.bidding_end_time is not None and self.bidding_end_time > self.flight.model.schedule.steps, f"{self.bidding_end_time}"
+            assert self.bidding_end_time is not None and self.bidding_end_time >= self.flight.model.schedule.steps, f"{self.bidding_end_time} < {self.flight.model.schedule.steps}, {[bid['bidding_agent'].unique_id for bid in current_bids]}"
             highest_bid = None
             highest_utility = None
             print(f"{self.flight.agent_type}, {self.flight.unique_id} received {len(current_bids)} new bids.")
@@ -130,6 +131,7 @@ class CNP:
             self.flight.received_bids = []
             self.flight.update_role()
             print(f"Flight {self.flight.unique_id} got demoted to contractor.")
+        print(f"Manager {self.flight.unique_id} with end_time {self.bidding_end_time} is {self.flight.formation_state}, and is accepting bids: {self.flight.accepting_bids}")
         return
 
     # Negotiation activities for contractor agents
@@ -173,7 +175,7 @@ class CNP:
                 selected_manager = None
                 selected_bid = 0
                 for i, [manager, end_time] in enumerate(self.managers_calling):
-                    if manager.accepting_bids == 1 and end_time >= self.flight.model.schedule.steps:
+                    if manager.accepting_bids == 1 and end_time > self.flight.model.schedule.steps:
                         fuel_saving = self.flight.calculate_potential_fuelsavings(manager, individual=True)
                         delay = self.flight.calculate_potential_delay(manager)
                         bidding_value = self.bidding_strategy(fuel_saving, delay, end_time)
@@ -183,15 +185,15 @@ class CNP:
                             selected_manager = manager
                             selected_bid = bidding_value
                     # Remove the expired calls
-                    elif manager.cnp.bidding_end_time is None or end_time < self.flight.model.schedule.steps:
-                        print(f"Popping call from {manager.unique_id}: {manager.cnp.bidding_end_time}")
+                    else:
+                        print(f"Popping call from {manager.unique_id}: {manager.cnp.bidding_end_time}, {manager.accepting_bids}")
                         self.managers_calling.pop(i)
                 print(f"Contractor {self.flight.unique_id} has {len(self.managers_calling)} open calls: {[(m.unique_id, t) for m, t in self.managers_calling]}.")
 
                 if selected_manager is not None:
                     # TODO: Implement bid expiration date. Currently None.
                     self.flight.make_bid(selected_manager, selected_bid, True, None)
-                    print(self.flight.agent_type, self.flight.unique_id, "makes bid to", selected_manager.unique_id, "with value of", selected_bid, "and potential utility of", utility_score)
+                    print(self.flight.agent_type, self.flight.unique_id, "makes bid to", selected_manager.unique_id, "with value of", selected_bid, "and potential utility of", utility_score, "deadline", selected_manager.cnp.bidding_end_time, "compared to", self.flight.model.schedule.steps)
                     # Save the bid that was made, so it can be used in the bidding strategy
                     self.pending_bids[selected_manager] = {"bid": selected_bid,
                                                            "time": self.flight.model.schedule.steps,
