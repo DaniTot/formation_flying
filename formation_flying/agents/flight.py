@@ -182,11 +182,10 @@ class Flight(Agent):
     # =============================================================================
     def step(self):
         if self.state == "flying":
-
             if self.formation_state == "committed" or self.formation_state == "adding_to_formation":
                 if self.manager == 1:
                     for agent in self.agents_in_my_formation:
-                        if agent.formation_state is not "in_formation":
+                        if agent.formation_state is "committed":
                             self.speed_to_joining = self.calc_speed_to_joining_point(agent)
                             break
                 else:
@@ -446,11 +445,10 @@ class Flight(Agent):
 
         target_agent.agents_in_my_formation = involved_agents[:]
         involved_agents.append(target_agent)
-
         for agent in involved_agents:
             agent.joining_point = self.joining_point
             agent.leaving_point = self.leaving_point
-            agent.speed_to_joining = self.speed_to_joining
+            # agent.speed_to_joining = self.speed_to_joining
 
         # self.estimated_flight_time = self.real_flight_time + (
         #         calc_distance(self.pos, self.joining_point) +
