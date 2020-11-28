@@ -41,7 +41,7 @@ class CNP:
 
     # Negotiation activities for manager agents
     def do_manager(self):
-        print(f"{self.flight.unique_id} does manager")
+        print(f"{self.flight.unique_id} does manager, with deadline of {self.bidding_end_time}")
         # Do not call for contract, while picking up an accepted agent.
         if self.flight.formation_state not in ("committed", "adding_to_formation"):
             # Do not call for contract, when already close to destination
@@ -61,6 +61,7 @@ class CNP:
                 # Change the validity to false, so every bid is considered only once.
                 bid["validity"] = False
         if len(current_bids) > 0:
+            assert self.bidding_end_time is not None and self.bidding_end_time >= self.flight.model.schedule.steps
             highest_bid = None
             highest_utility = None
             print(f"{self.flight.agent_type}, {self.flight.unique_id} received {len(current_bids)} new bids.")
@@ -183,7 +184,7 @@ class CNP:
                     # Remove the expired calls
                     elif end_time < self.flight.model.schedule.steps:
                         self.managers_calling.pop(i)
-                print(f"Contractor {self.flight.unique_id} has {len(self.managers_calling)} open calls.")
+                print(f"Contractor {self.flight.unique_id} has {len(self.managers_calling)} open calls: {[(m.unique_id, t) for m, t in self.managers_calling]}.")
 
                 if selected_manager is not None:
                     # TODO: Implement bid expiration date. Currently None.
