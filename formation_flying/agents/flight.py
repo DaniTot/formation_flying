@@ -406,6 +406,7 @@ class Flight(Agent):
 
         self.joining_point = self.calc_joining_point(target_agent)
         self.speed_to_joining = self.calc_speed_to_joining_point(target_agent)
+        target_speed_to_joining = target_agent.calc_speed_to_joining_point(self)
 
         involved_agents = [self]
         for agent in self.agents_in_my_formation:
@@ -445,10 +446,12 @@ class Flight(Agent):
 
         target_agent.agents_in_my_formation = involved_agents[:]
         involved_agents.append(target_agent)
+
         for agent in involved_agents:
             agent.joining_point = self.joining_point
             agent.leaving_point = self.leaving_point
-            # agent.speed_to_joining = self.speed_to_joining
+            agent.speed_to_joining = self.speed_to_joining
+        target_agent.speed_to_joining = target_speed_to_joining
 
         # self.estimated_flight_time = self.real_flight_time + (
         #         calc_distance(self.pos, self.joining_point) +
