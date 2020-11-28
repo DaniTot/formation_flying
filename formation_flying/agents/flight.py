@@ -257,7 +257,6 @@ class Flight(Agent):
                 new_total_fuel = self.model.fuel_reduction * formation_distance + added_distance
                 fuel_savings = original_distance - new_total_fuel
 
-
         else:
             if len(self.agents_in_my_formation) > 0 and len(target_agent.agents_in_my_formation) > 0:
                 raise Exception("This function is not advanced enough to handle two formations joining")
@@ -357,14 +356,16 @@ class Flight(Agent):
             leaving_point = formation_leader.leaving_point
 
         if self.speed_to_joining is None:
+            assert self.formation_state in ("no_formation", "in_formation"), self.formation_state
             local_speed_to_joining = self.calc_speed_to_joining_point(target_agent)
         else:
+            assert self.formation_state in ("adding_to_formation", "committed"), self.formation_state
             local_speed_to_joining = self.speed_to_joining
-        if calc_distance(self.pos, joining_point) > 0.001:
+        if calc_distance(self.pos, joining_point) - (local_speed_to_joining / 2) > 0.001:
             joining_time = calc_distance(self.pos, joining_point) / local_speed_to_joining
         else:
             joining_time = 0
-        if calc_distance(leaving_point, self.destination) > 0.001:
+        if calc_distance(leaving_point, self.destination) - (self.speed / 2) > 0.001:
             leaving_time = calc_distance(leaving_point, self.destination) / self.speed
         else:
             leaving_time = 0
@@ -404,10 +405,6 @@ class Flight(Agent):
             # Discard all bids that have been received
             self.received_bids = []
 
-        self.joining_point = self.calc_joining_point(target_agent)
-        self.speed_to_joining = self.calc_speed_to_joining_point(target_agent)
-        target_speed_to_joining = target_agent.calc_speed_to_joining_point(self)
-
         involved_agents = [self]
         for agent in self.agents_in_my_formation:
             involved_agents.append(agent)  # These are the current formation agents
@@ -419,6 +416,10 @@ class Flight(Agent):
         if target_agent in involved_agents:
             raise Exception("This is not correct")
 
+        self.joining_point = self.calc_joining_point(target_agent)
+        self.speed_to_joining = self.calc_speed_to_joining_point(target_agent)
+        target_speed_to_joining = target_agent.calc_speed_to_joining_point(self)
+
         bid_receivers = bid_value / (len(
             self.agents_in_my_formation) + 1)
         self.deal_value += bid_receivers
@@ -428,30 +429,36 @@ class Flight(Agent):
 
         target_agent.formation_state = "committed"
 
+        target_agent.speed_to_joining = target_speed_to_joining
+        target_agent.joining_point = self.joining_point
+        target_agent.leaving_point = self.leaving_point
+
         potential_fuel_saved = self.calculate_potential_fuelsavings(target_agent, individual=True)
-        self.estimated_fuel_saved += potential_fuel_saved
-        target_potential_fuel_saved = target_agent.calculate_potential_fuelsavings(self, individual=True)
-        target_agent.estimated_fuel_saved += target_potential_fuel_saved
-
         potential_delay = self.calculate_potential_delay(target_agent)
-        self.estimated_delay += potential_delay
+        target_potential_fuel_saved = target_agent.calculate_potential_fuelsavings(self, individual=True)
         target_potential_delay = target_agent.calculate_potential_delay(self)
-        target_agent.estimated_delay += target_potential_delay
-
-        self.estimated_utility_score += utility_function(potential_fuel_saved + bid_receivers, potential_fuel_saved,
-                                                         potential_delay, behavior=self.behavior)
-        target_agent.estimated_utility_score += utility_function(target_potential_fuel_saved - bid_value,
-                                                                 target_potential_fuel_saved, target_potential_delay,
-                                                                 behavior=target_agent.behavior)
 
         target_agent.agents_in_my_formation = involved_agents[:]
-        involved_agents.append(target_agent)
-
         for agent in involved_agents:
             agent.joining_point = self.joining_point
             agent.leaving_point = self.leaving_point
             agent.speed_to_joining = self.speed_to_joining
-        target_agent.speed_to_joining = target_speed_to_joining
+
+            agent.estimated_fuel_saved += potential_fuel_saved
+            agent.estimated_delay += potential_delay
+            agent.estimated_utility_score += utility_function(potential_fuel_saved + bid_receivers,
+                                                              potential_fuel_saved,
+                                                              potential_delay,
+                                                              behavior=agent.behavior)
+
+        # involved_agents.append(target_agent)
+
+        target_agent.estimated_fuel_saved += target_potential_fuel_saved
+        target_agent.estimated_delay += target_potential_delay
+        target_agent.estimated_utility_score += utility_function(target_potential_fuel_saved - bid_value,
+                                                                 target_potential_fuel_saved,
+                                                                 target_potential_delay,
+                                                                 behavior=target_agent.behavior)
 
         # self.estimated_flight_time = self.real_flight_time + (
         #         calc_distance(self.pos, self.joining_point) +
@@ -635,6 +642,7 @@ class Flight(Agent):
                     print(f"FORMING UP {[(agent.unique_id, calc_distance(self.pos, agent.pos), agent.formation_state) for agent in self.agents_in_my_formation]}")
                 self.formation_state = "in_formation"
                 self.accepting_bids = True
+                self.speed_to_joining = None
 
         if self.state == "flying":
             self.model.total_flight_time += 1

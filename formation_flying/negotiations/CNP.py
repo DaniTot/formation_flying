@@ -50,7 +50,7 @@ class CNP:
                 print(f"{self.flight.unique_id} calls for contract with deadline {self.bidding_end_time}")
             else:
                 # By setting the bid end time to the past, the manager will be demoted to contractor at the end of its turn
-                self.bidding_end_time = self.flight.model.schedule.steps - 1
+                self.bidding_end_time = 0
                 self.flight.accepting_bids = 0
 
         # Select a contractor
@@ -62,7 +62,7 @@ class CNP:
                 # Change the validity to false, so every bid is considered only once.
                 bid["validity"] = False
         if len(current_bids) > 0:
-            assert self.bidding_end_time is not None and self.bidding_end_time >= self.flight.model.schedule.steps, f"{self.bidding_end_time} < {self.flight.model.schedule.steps}, {[bid['bidding_agent'].unique_id for bid in current_bids]}"
+            # assert self.bidding_end_time is not None and self.bidding_end_time >= self.flight.model.schedule.steps, f"{self.bidding_end_time} < {self.flight.model.schedule.steps}, {[bid['bidding_agent'].unique_id for bid in current_bids]}"
             highest_bid = None
             highest_utility = None
             print(f"{self.flight.agent_type}, {self.flight.unique_id} received {len(current_bids)} new bids.")
