@@ -41,7 +41,7 @@ class CNP:
 
     # Negotiation activities for manager agents
     def do_manager(self):
-        print(f"{self.flight.unique_id} does manager, with deadline of {self.bidding_end_time}")
+        print(f"{self.flight.unique_id} does manager")
         # Do not call for contract, while picking up an accepted agent.
         if self.flight.formation_state not in ("committed", "adding_to_formation"):
             # Do not call for contract, when already close to destination
@@ -61,7 +61,7 @@ class CNP:
                 # Change the validity to false, so every bid is considered only once.
                 bid["validity"] = False
         if len(current_bids) > 0:
-            assert self.bidding_end_time is not None and self.bidding_end_time >= self.flight.model.schedule.steps
+            assert self.bidding_end_time is not None and self.bidding_end_time > self.flight.model.schedule.steps, f"{self.bidding_end_time}"
             highest_bid = None
             highest_utility = None
             print(f"{self.flight.agent_type}, {self.flight.unique_id} received {len(current_bids)} new bids.")
@@ -97,6 +97,7 @@ class CNP:
             # Check if the highest bid meets the acceptance strategy requirements.
             # If a formation is formed, reset received_bids and pending_bids
             if self.acceptance_strategy(highest_bid["bidding_agent"], highest_bid["value"]) is True:
+                # self.flight.formation_state not in ("committed", "adding_to_formation")
                 if len(self.flight.agents_in_my_formation) > 0:
                     self.flight.add_to_formation(list(highest_bid.values())[0],
                                                  list(highest_bid.values())[1], discard_received_bids=True)
@@ -182,7 +183,8 @@ class CNP:
                             selected_manager = manager
                             selected_bid = bidding_value
                     # Remove the expired calls
-                    elif end_time < self.flight.model.schedule.steps:
+                    elif manager.cnp.bidding_end_time is None or end_time < self.flight.model.schedule.steps:
+                        print(f"Popping call from {manager.unique_id}: {manager.cnp.bidding_end_time}")
                         self.managers_calling.pop(i)
                 print(f"Contractor {self.flight.unique_id} has {len(self.managers_calling)} open calls: {[(m.unique_id, t) for m, t in self.managers_calling]}.")
 

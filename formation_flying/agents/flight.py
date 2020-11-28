@@ -180,6 +180,18 @@ class Flight(Agent):
     def step(self):
         if self.state == "flying":
 
+            if self.formation_state == "committed" or self.formation_state == "adding_to_formation":
+                if self.manager == 1:
+                    for agent in self.agents_in_my_formation:
+                        if agent.formation_state is not "in_formation":
+                            self.speed_to_joining = self.calc_speed_to_joining_point(agent)
+                            break
+                else:
+                    for agent in self.agents_in_my_formation:
+                        if agent.manager == 1:
+                            self.speed_to_joining = self.calc_speed_to_joining_point(agent)
+                            break
+
             # Update the relevant performance indicators
             self.real_flight_time += 1
             if self.manager == 1:
@@ -615,6 +627,8 @@ class Flight(Agent):
                     self.distance_to_destination(self.joining_point) <= self.speed_to_joining / 2:
                 # If the agent reached the joining point of a new formation, 
                 # change status to "in formation" and start accepting new bids again.
+                if len(self.agents_in_my_formation) > 0:
+                    print(f"FORMING UP {[(agent.unique_id, calc_distance(self.pos, agent.pos), agent.formation_state) for agent in self.agents_in_my_formation]}")
                 self.formation_state = "in_formation"
                 self.accepting_bids = True
 
@@ -668,8 +682,10 @@ class Flight(Agent):
     #   !!! TODO Exc. 1.3: improve calculation joining/leaving point.!!!
     # =========================================================================
     def calc_speed_to_joining_point(self, neighbor):
-
-        joining_point = self.calc_joining_point(neighbor)
+        if self.joining_point is None:
+            joining_point = self.calc_joining_point(neighbor)
+        else:
+            joining_point = self.joining_point
         # Am I stupid, or dist_self and are literally the same in the original code?
         dist_self = ((joining_point[0] - self.pos[0]) ** 2 + (joining_point[1] - self.pos[1]) ** 2) ** 0.5
         dist_neighbor = ((joining_point[0] - neighbor.pos[0]) ** 2 + (joining_point[1] - neighbor.pos[1]) ** 2) ** 0.5
@@ -685,11 +701,12 @@ class Flight(Agent):
                 speed_neighbor = speed_self / speed_fraction
                 assert round(dist_self / speed_self, 3) == round(dist_neighbor / speed_neighbor, 3), f"{dist_self} / {speed_self} = {dist_neighbor} / {speed_neighbor} => {round(dist_self / speed_self, 3)} = {round(dist_neighbor / speed_neighbor, 3)}"
                 assert speed_self > 0 and speed_neighbor > 0, f"{speed_self}, {speed_neighbor}\n{dist_self}, {dist_neighbor}\n{1-speed_fraction}"
-                return speed_self
             elif round(dist_self, 3) == 0.0:
-                return 0
+                speed_self = 0.0
+                speed_neighbor = self.speed
             elif round(dist_neighbor, 3) == 0.0:
-                return self.speed
+                speed_self = self.speed
+                speed_neighbor = 0.0
             else:
                 raise Exception(f"What the fuck? {dist_self}, {dist_neighbor}")
         except FloatingPointError as err:
@@ -698,6 +715,8 @@ class Flight(Agent):
             print(speed_fraction)
             print(speed_self)
             raise err
+        # print(f"Self: {dist_self, speed_self} = {dist_self/speed_self}; Neighbor{dist_neighbor, speed_neighbor} = {dist_neighbor/speed_neighbor}")
+        return speed_self
         # try:
         #     rest = dist_self % self.speed
         #     regular_time = math.floor(dist_self / self.speed)
