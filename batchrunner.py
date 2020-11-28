@@ -22,6 +22,6 @@ batch_run.run_all()
 
 run_data = batch_run.get_model_vars_dataframe()
 agent_data = batch_run.get_agent_vars_dataframe()
-agent_data.to_excel("agent_output.xlsx")
-run_data.to_excel("model_output.xlsx")
+agent_data.to_excel("agent_output_20_greedy.xlsx")
+run_data.to_excel("model_output_20_greedy.xlsx")
 

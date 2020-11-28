@@ -54,7 +54,7 @@ class Japanese:
     def do_manager(self):
         # If manager is not in the process of joining up with committed flights,
         # and has no ongoing auction yet, invite potential bidders
-        if self.flight.formation_state is not "committed":
+        if self.flight.formation_state not in ("committed", "adding_to_formation"):
             if self.auction_start_time is None or self.auction_start_time > self.flight.model.schedule.steps:
                 self.call_for_bidders()
 
@@ -85,6 +85,8 @@ class Japanese:
                                                     discard_received_bids=True)
                     print(
                         f"Last man standing: {self.contractors_in_auction[0].unique_id} won the auction, with price {self.display_price}")
+                    self.flight.accepting_bids = 0
+                    self.contractors_in_auction[0].japanese.reset_attributes()
                     self.reset_attributes()
                 # If multiple contractors exited the auction at the same display price,
                 # select the one that submitted the highest exiting price
@@ -99,6 +101,8 @@ class Japanese:
                                                     discard_received_bids=True)
                     print(f"Highest exit: {self.leading_exiting_bidder['bidder'].unique_id} won the auction, "
                           f"with price {self.leading_exiting_bidder['bid']}")
+                    self.flight.accepting_bids = 0
+                    self.leading_exiting_bidder["bidder"].japanese.reset_attributes()
                     self.reset_attributes()
         return
 
@@ -114,7 +118,7 @@ class Japanese:
                         bidding_value = manager.japanese.display_price
                         profit = fuel_saving - bidding_value
                         utility = utility_function(profit, fuel_saving, delay, behavior=self.flight.behavior)
-                        # print(f"{manager.unique_id}'s auction: {utility, self.favored_auction['utility']}")
+                        print(f"{manager.unique_id}'s auction: {utility, self.favored_auction['utility']}")
                         if utility > self.favored_auction["utility"]:
                             self.favored_auction["utility"] = utility
                             self.favored_auction["manager"] = manager
@@ -157,7 +161,7 @@ class Japanese:
                 print(self.current_auction.japanese.contractors_dropped_out)
                 print(self.current_auction.japanese.display_price)
                 print(self.current_auction.japanese.leading_exiting_bidder)
-                print(self.current_auction.japanese.self.auction_start_time)
+                print(self.current_auction.japanese.auction_start_time)
                 raise err
             # Recalculate the minimum utility that can be accepted
             max_utility = utility_function(fuel_saving, fuel_saving, delay, behavior=self.flight.behavior)
@@ -192,6 +196,7 @@ class Japanese:
             self.auction_start_time = self.flight.model.schedule.steps + self.auction_joining_timeframe
             self.reserve_price = self.set_reserve_price(dynamic_price=True)
             self.display_price = self.reserve_price
+            self.flight.accepting_bids = 1
             print(f"Flight {self.flight.unique_id} scheduled auction to {self.auction_start_time} with display price {self.display_price}")
         for neighbor in self.flight.model.space.get_neighbors(pos=self.flight.pos,
                                                               radius=self.flight.communication_range,
@@ -228,11 +233,11 @@ class Japanese:
             self.leading_exiting_bidder["bid"] = exit_bid
 
     def enter_auction(self, bidder):
-        # print(f"{bidder.unique_id} entering auction: {self.flight.model.schedule.steps, self.auction_start_time, bidder not in self.contractors_dropped_out}")
+        print(f"{bidder.unique_id} entering auction: {self.flight.model.schedule.steps, self.auction_start_time, bidder not in self.contractors_dropped_out}")
         if self.flight.model.schedule.steps < self.auction_start_time:
             if bidder not in self.contractors_dropped_out:
                 self.contractors_in_auction.append(bidder)
-                # print(f"{bidder.agent_type}, {bidder.unique_id}, enters auction of {self.flight.unique_id}")
+                print(f"{bidder.agent_type}, {bidder.unique_id}, enters auction of {self.flight.unique_id}")
 
     def demote(self):
         self.flight.manager = 0

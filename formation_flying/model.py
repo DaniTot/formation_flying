@@ -101,7 +101,7 @@ class FormationFlying(Model):
 
         self.datacollector = DataCollector(model_reporter_parameters, agent_reporter_parameters)
 
-        print("Model initiated", self.negotiation_method)
+        # print("Model initiated", self.negotiation_method)
         
     # =========================================================================
     #  Create all flights, the flights are not all initialized at the same time,
@@ -128,7 +128,7 @@ class FormationFlying(Model):
             self.space.place_agent(flight, pos)
             self.schedule.add(flight)
             self.total_planned_fuel += calc_distance(flight.pos, flight.destination)
-        print("Agents created")
+        # print("Agents created")
 
     # =============================================================================
     #   Create all airports. The option "inactive_airports" gives you the 

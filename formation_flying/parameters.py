@@ -33,13 +33,13 @@ from .metrics import *
 
 
 # This can be infinite, as the model should stop on its own when all agents have arrived at their destination.
-max_steps = 10000 
+max_steps = 20000
 
 # Multiple iterations are used when running the batchrunner.py:
-n_iterations = 5
+n_iterations = 20
 
 model_params = {
-    "n_flights": 20,
+    "n_flights": 50,
     "n_origin_airports": 20,
     "n_destination_airports": 20,
     # "communication_range": 200, #[km]
@@ -47,7 +47,7 @@ model_params = {
     "height": 750, # [km]
     "speed": 0.25, #[km / second]
     "fuel_reduction": 0.75, 
-    "negotiation_method": 1,
+    "negotiation_method": 4,
     "departure_window": 3, 
     "origin_airport_x": [0.01, 0.3], 
     "origin_airport_y": [0.01, 0.3],
@@ -78,7 +78,7 @@ agent_reporter_parameters = {"Behavior": "behavior",
                              "Estimated fuel saved": "estimated_fuel_saved",
                              "Real fuel saved": "real_fuel_saved",
                              "Distance in formation": "distance_in_formation",
-                             "Formation size": "formation_size",
+                             # "Formation size": "formation_size",
                              "Estimated delay": "estimated_delay",
                              "Delay time": "delay",
                              "Estimated utility": "estimated_utility_score",

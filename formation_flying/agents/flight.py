@@ -558,8 +558,9 @@ class Flight(Agent):
         candidates = []
         for agent in neighbors:
             if type(agent) is Flight:
-                if agent.formation_state == "no_formation" or agent.formation_state == "in_formation":
-                    candidates.append(agent)
+                if agent.manager == 1 and agent.accepting_bids == 1:
+                    if agent.formation_state == "no_formation" or agent.formation_state == "in_formation":
+                        candidates.append(agent)
         return candidates
 
     # =========================================================================
@@ -619,8 +620,8 @@ class Flight(Agent):
                 if self.deal_value != 0:
                     self.real_utility_score = utility_function(self.real_fuel_saved + self.deal_value,
                                                                self.real_fuel_saved, self.delay, behavior=self.behavior)
-                print(
-                    f"Flight {self.unique_id} arrived at {self.real_arrival} with a delay of {self.delay}, saving {self.real_fuel_saved} fuel.")
+                # print(
+                #     f"Flight {self.unique_id} arrived at {self.real_arrival} with a delay of {self.delay}, saving {self.real_fuel_saved} fuel.")
                 self.state = "arrived"
 
         elif self.model.schedule.steps >= self.departure_time:
@@ -635,11 +636,10 @@ class Flight(Agent):
                 self.agents_in_my_formation = []
 
             if (self.formation_state == "committed" or self.formation_state == "adding_to_formation") and \
-                    self.distance_to_destination(self.joining_point) <= self.speed_to_joining / 2:
+                    (self.distance_to_destination(self.joining_point) <= self.speed_to_joining / 2 or \
+                    self.distance_to_destination(self.joining_point) <= 0.001):
                 # If the agent reached the joining point of a new formation, 
                 # change status to "in formation" and start accepting new bids again.
-                if len(self.agents_in_my_formation) > 0:
-                    print(f"FORMING UP {[(agent.unique_id, calc_distance(self.pos, agent.pos), agent.formation_state) for agent in self.agents_in_my_formation]}")
                 self.formation_state = "in_formation"
                 self.accepting_bids = True
                 self.speed_to_joining = None
