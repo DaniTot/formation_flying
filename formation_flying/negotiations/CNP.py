@@ -41,13 +41,13 @@ class CNP:
 
     # Negotiation activities for manager agents
     def do_manager(self):
-        print(f"{self.flight.unique_id} does manager")
+        # print(f"{self.flight.unique_id} does manager")
         # Do not call for contract, while picking up an accepted agent.
         if self.flight.formation_state not in ("committed", "adding_to_formation"):
             # Do not call for contract, when already close to destination
             if  not calc_distance(self.flight.pos, self.flight.destination)/self.flight.speed <= self.negotiation_window:
                 self.call_for_contract()
-                print(f"{self.flight.unique_id} calls for contract with deadline {self.bidding_end_time}")
+                # print(f"{self.flight.unique_id} calls for contract with deadline {self.bidding_end_time}")
             else:
                 # By setting the bid end time to the past, the manager will be demoted to contractor at the end of its turn
                 self.bidding_end_time = 0
@@ -65,14 +65,14 @@ class CNP:
             # assert self.bidding_end_time is not None and self.bidding_end_time >= self.flight.model.schedule.steps, f"{self.bidding_end_time} < {self.flight.model.schedule.steps}, {[bid['bidding_agent'].unique_id for bid in current_bids]}"
             highest_bid = None
             highest_utility = None
-            print(f"{self.flight.agent_type}, {self.flight.unique_id} received {len(current_bids)} new bids.")
+            # print(f"{self.flight.agent_type}, {self.flight.unique_id} received {len(current_bids)} new bids.")
             for bid in current_bids:
                 # print(f"Contractor {bid['bidding_agent'].agent_type, bid['bidding_agent'].unique_id}'s bid: {bid['value']}")
                 bid_saving = self.flight.calculate_potential_fuelsavings(bid["bidding_agent"], individual=True)
                 bid_share = bid["value"] / (len(self.flight.agents_in_my_formation) + 1)
                 bid_delay = self.flight.calculate_potential_delay(bid["bidding_agent"])
                 bid_utility = utility_function(bid_saving + bid_share, bid_saving, bid_delay, behavior=self.flight.behavior)
-                print(f"Manager {self.flight.unique_id} is considering bid of {bid['value']} from {bid['bidding_agent'].unique_id} for utility {bid_utility}")
+                # print(f"Manager {self.flight.unique_id} is considering bid of {bid['value']} from {bid['bidding_agent'].unique_id} for utility {bid_utility}")
                 if highest_bid is None:
                     highest_bid = bid.copy()
                     highest_utility = bid_utility
@@ -109,7 +109,7 @@ class CNP:
                 highest_bid["bidding_agent"].cnp.pending_bids[self.flight]["accepted"] = True
                 self.bidding_end_time = None
                 self.flight.accepting_bids = 0
-                print(f"{self.flight.agent_type}, {self.flight.unique_id} selected {highest_bid['bidding_agent'].unique_id}'s bid: {highest_bid['value']}")
+                # print(f"{self.flight.agent_type}, {self.flight.unique_id} selected {highest_bid['bidding_agent'].unique_id}'s bid: {highest_bid['value']}")
             else:
                 # Communicate refusal to the contractor agent
                 try:
@@ -130,13 +130,13 @@ class CNP:
             self.flight.manager = 0
             self.flight.received_bids = []
             self.flight.update_role()
-            print(f"Flight {self.flight.unique_id} got demoted to contractor.")
-        print(f"Manager {self.flight.unique_id} with end_time {self.bidding_end_time} is {self.flight.formation_state}, and is accepting bids: {self.flight.accepting_bids}")
+            # print(f"Flight {self.flight.unique_id} got demoted to contractor.")
+        # print(f"Manager {self.flight.unique_id} with end_time {self.bidding_end_time} is {self.flight.formation_state}, and is accepting bids: {self.flight.accepting_bids}")
         return
 
     # Negotiation activities for contractor agents
     def do_contractor(self):
-        print(f"{self.flight.unique_id} does contractor")
+        # print(f"{self.flight.unique_id} does contractor")
         # Process any responses to pending bids in pending_bids:
         # A copy of the bids must be created, in order to avoide issuesby removing dict entries while looping.
         refused_bids = []
@@ -144,10 +144,10 @@ class CNP:
         for manager in self.pending_bids:
             if self.pending_bids[manager]["accepted"] is True:
                 accepted_bids.append(manager)
-                print(f"Contractor {self.flight.unique_id}'s bid to Manager {manager.unique_id} was accepted")
+                # print(f"Contractor {self.flight.unique_id}'s bid to Manager {manager.unique_id} was accepted")
             elif self.pending_bids[manager]["accepted"] is False:
                 refused_bids.append(manager)
-                print(f"Contractor {self.flight.unique_id}'s bid to Manager {manager.unique_id} was refused")
+                # print(f"Contractor {self.flight.unique_id}'s bid to Manager {manager.unique_id} was refused")
         assert len(accepted_bids) <= 1, f"Multiple bids of Flight {self.flight.unique_id} have " \
                                         f"been accepted."
         # Remove refused bids from pending_bids
@@ -161,7 +161,7 @@ class CNP:
         # Promote some contractors randomly to managers, in order to allow for formations that otherwise wouldn't form.
         if choices([True, False], weights=[1, 3*self.negotiation_window], k=1)[0]:
             self.flight.manager = 1
-            print(self.flight.agent_type, self.flight.unique_id, "becomes manager by chance.")
+            # print(self.flight.agent_type, self.flight.unique_id, "becomes manager by chance.")
             # Reset the relevant lists, and update the role
             self.free_flights_in_reach = []
             self.received_neighbor_counts = []
@@ -186,14 +186,14 @@ class CNP:
                             selected_bid = bidding_value
                     # Remove the expired calls
                     else:
-                        print(f"Popping call from {manager.unique_id}: {manager.cnp.bidding_end_time}, {manager.accepting_bids}")
+                        # print(f"Popping call from {manager.unique_id}: {manager.cnp.bidding_end_time}, {manager.accepting_bids}")
                         self.managers_calling.pop(i)
-                print(f"Contractor {self.flight.unique_id} has {len(self.managers_calling)} open calls: {[(m.unique_id, t) for m, t in self.managers_calling]}.")
+                # print(f"Contractor {self.flight.unique_id} has {len(self.managers_calling)} open calls: {[(m.unique_id, t) for m, t in self.managers_calling]}.")
 
                 if selected_manager is not None:
                     # TODO: Implement bid expiration date. Currently None.
                     self.flight.make_bid(selected_manager, selected_bid, True, None)
-                    print(self.flight.agent_type, self.flight.unique_id, "makes bid to", selected_manager.unique_id, "with value of", selected_bid, "and potential utility of", utility_score, "deadline", selected_manager.cnp.bidding_end_time, "compared to", self.flight.model.schedule.steps)
+                    # print(self.flight.agent_type, self.flight.unique_id, "makes bid to", selected_manager.unique_id, "with value of", selected_bid, "and potential utility of", utility_score, "deadline", selected_manager.cnp.bidding_end_time, "compared to", self.flight.model.schedule.steps)
                     # Save the bid that was made, so it can be used in the bidding strategy
                     self.pending_bids[selected_manager] = {"bid": selected_bid,
                                                            "time": self.flight.model.schedule.steps,
@@ -203,7 +203,7 @@ class CNP:
             elif self.flight.formation_state is "no_formation" and len(self.pending_bids) == 0:
                 # Do not apply for manager, once close to destination, as you wouldn't be able to call for contract anyway
                 if not calc_distance(self.flight.pos, self.flight.destination) / self.flight.speed <= self.negotiation_window:
-                    print(f"Contractor {self.flight.unique_id} applying for manager")
+                    # print(f"Contractor {self.flight.unique_id} applying for manager")
                     self.apply_for_manager()
 
     def bidding_strategy(self, fuel_saving, delay, end_time, min_utility_frac=0.50, kappa=0, beta=1):
@@ -220,7 +220,7 @@ class CNP:
             highest_bid += 1
         highest_bid -= 1
         # TODO: check if the -= part is actually correct
-        print(f"Highest bid {highest_bid}, resulting to utility {utility_function(fuel_saving - highest_bid, fuel_saving, delay, behavior=self.flight.behavior)}, compared to min utility {min_utility}")
+        # print(f"Highest bid {highest_bid}, resulting to utility {utility_function(fuel_saving - highest_bid, fuel_saving, delay, behavior=self.flight.behavior)}, compared to min utility {min_utility}")
         # print(f"Flight {self.flight.unique_id} utility score: {utility_function(fuel_saving - highest_bid, fuel_saving, delay, behavior=self.flight.behavior)}, with highest bid {highest_bid}")
 
         alpha = kappa + (1 - kappa) * (min([self.flight.model.schedule.steps, end_time]) / end_time)**(1/beta)
@@ -234,10 +234,10 @@ class CNP:
         potential_utility = utility_function(fuel_saving + bid_receive, fuel_saving, delay, behavior=self.flight.behavior)
         current_min_utility = min_utility/(self.flight.model.schedule.steps - self.bidding_end_time + self.negotiation_window + 1)
         if potential_utility >= current_min_utility:
-            print(f"Bid from {bidding_agent.unique_id} of utility {potential_utility} accepted by {self.flight.unique_id} as min utility is {current_min_utility}")
+            # print(f"Bid from {bidding_agent.unique_id} of utility {potential_utility} accepted by {self.flight.unique_id} as min utility is {current_min_utility}")
             return True
         else:
-            print(f"Bid from {bidding_agent.unique_id} of utility {potential_utility} refused by {self.flight.unique_id} as min utility is {current_min_utility}")
+            # print(f"Bid from {bidding_agent.unique_id} of utility {potential_utility} refused by {self.flight.unique_id} as min utility is {current_min_utility}")
             return False
 
     def apply_for_manager(self):
@@ -260,11 +260,11 @@ class CNP:
         for neighbor in self.free_flights_in_reach:
             if neighbor.manager == 1:
                 manager_taken = True
-                print(self.flight.agent_type, self.flight.unique_id, f"stays contractor, {neighbor.unique_id} is already manager.")
+                # print(self.flight.agent_type, self.flight.unique_id, f"stays contractor, {neighbor.unique_id} is already manager.")
                 break
         if len(self.received_neighbor_counts) > 0 and len(self.free_flights_in_reach) >= max(self.received_neighbor_counts) and manager_taken is False:
             self.flight.manager = 1
-            print(self.flight.agent_type, self.flight.unique_id, "becomes manager")
+            # print(self.flight.agent_type, self.flight.unique_id, "becomes manager")
 
         # After evaluation, reset the relevant lists, and update the role
         self.free_flights_in_reach = []

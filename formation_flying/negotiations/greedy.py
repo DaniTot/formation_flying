@@ -19,13 +19,15 @@ def do_greedy(flight):
         # with positive potential fuelsavings.
         if formation_targets is not None:
             for agent in formation_targets:
-                if len(agent.agents_in_my_formation) > 0:
-                    if flight.calculate_potential_fuelsavings(agent) > 0:
-                        formation_savings = flight.calculate_potential_fuelsavings(agent)
-                        agent.add_to_formation(flight, formation_savings, discard_received_bids=True)
-                        break
-                elif len(agent.agents_in_my_formation) == 0:
-                    if flight.calculate_potential_fuelsavings(agent) > 0:
-                        formation_savings = flight.calculate_potential_fuelsavings(agent)
-                        flight.start_formation(agent, formation_savings, discard_received_bids=True)
-                        break
+                if agent.formation_state in ("no_formation", "in_formation"):
+                    if len(agent.agents_in_my_formation) > 0:
+                        if flight.calculate_potential_fuelsavings(agent) > 0:
+                            formation_savings = flight.calculate_potential_fuelsavings(agent)
+                            assert flight.unique_id != agent.unique_id
+                            agent.add_to_formation(flight, formation_savings, discard_received_bids=True)
+                            break
+                    elif len(agent.agents_in_my_formation) == 0:
+                        if flight.calculate_potential_fuelsavings(agent) > 0:
+                            formation_savings = flight.calculate_potential_fuelsavings(agent)
+                            flight.start_formation(agent, formation_savings, discard_received_bids=True)
+                            break

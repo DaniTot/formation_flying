@@ -88,7 +88,6 @@ class Flight(Agent):
 
         # Performance indicators
         self.planned_fuel = calc_distance(self.pos, self.destination)
-        self.model.total_planned_fuel += self.planned_fuel
         self.estimated_fuel_saved = 0  #
         self.real_fuel_saved = None
         self.distance_in_formation = 0  ##
@@ -182,7 +181,7 @@ class Flight(Agent):
     # =============================================================================
     def step(self):
         if self.state == "flying":
-            if self.formation_state == "committed" or self.formation_state == "adding_to_formation":
+            if self.formation_state in ("committed", "adding_to_formation"):
                 if self.manager == 1:
                     for agent in self.agents_in_my_formation:
                         if agent.formation_state is "committed":
@@ -271,7 +270,7 @@ class Flight(Agent):
                     formation_joiner = self
                     n_agents_in_formation = len(target_agent.agents_in_my_formation) + 1
 
-                joining_point = self.calc_joining_point(formation_leader)
+                joining_point = formation_leader.calc_joining_point(formation_joiner)
                 leaving_point = formation_leader.leaving_point
 
                 # Fuel for leader
@@ -299,7 +298,7 @@ class Flight(Agent):
                 if len(self.agents_in_my_formation) > 0 and len(target_agent.agents_in_my_formation) == 0:
                     formation_leader = self
                     formation_joiner = target_agent
-                    joining_point = self.calc_joining_point(formation_leader)
+                    joining_point = formation_leader.calc_joining_point(formation_joiner)
                     leaving_point = formation_leader.leaving_point
                     new_distance_formation = calc_distance(formation_leader.pos, joining_point) + calc_distance(
                         joining_point, leaving_point)
@@ -311,7 +310,7 @@ class Flight(Agent):
                 elif len(self.agents_in_my_formation) == 0 and len(target_agent.agents_in_my_formation) > 0:
                     formation_leader = target_agent
                     formation_joiner = self
-                    joining_point = self.calc_joining_point(formation_leader)
+                    joining_point = target_agent.calc_joining_point(formation_joiner)
                     leaving_point = formation_leader.leaving_point
                     fuel_to_joining = calc_distance(self.pos, joining_point)
                     fuel_in_formation = calc_distance(joining_point, leaving_point) * self.model.fuel_reduction
@@ -352,7 +351,7 @@ class Flight(Agent):
                 formation_joiner = self
                 original_time = calc_distance(self.pos, self.destination) / self.speed
 
-            joining_point = self.calc_joining_point(formation_leader)
+            joining_point = formation_leader.calc_joining_point(formation_joiner)
             leaving_point = formation_leader.leaving_point
 
         if self.speed_to_joining is None:
@@ -361,11 +360,12 @@ class Flight(Agent):
         else:
             assert self.formation_state in ("adding_to_formation", "committed"), self.formation_state
             local_speed_to_joining = self.speed_to_joining
-        if calc_distance(self.pos, joining_point) - (local_speed_to_joining / 2) > 0.001:
+        if calc_distance(self.pos, joining_point) > 0.002 and \
+                local_speed_to_joining != 0.0:
             joining_time = calc_distance(self.pos, joining_point) / local_speed_to_joining
         else:
             joining_time = 0
-        if calc_distance(leaving_point, self.destination) - (self.speed / 2) > 0.001:
+        if calc_distance(leaving_point, self.destination) > (self.speed / 2):
             leaving_time = calc_distance(leaving_point, self.destination) / self.speed
         else:
             leaving_time = 0
@@ -498,7 +498,7 @@ class Flight(Agent):
         if discard_received_bids:
             self.received_bids = []
 
-        if self.distance_to_destination(target_agent.pos) < 0.001:
+        if self.distance_to_destination(target_agent.pos) < 0.002:
             # Edge case where agents are at the same spot.
             self.formation_state = "in_formation"
             target_agent.formation_state = "in_formation"
@@ -630,19 +630,40 @@ class Flight(Agent):
 
             if self.formation_state == "in_formation" and self.distance_to_destination(
                     self.leaving_point) <= self.speed / 2:
-                # If agent is in formation & close to leaving-point, leave the formation
+                # If agent is in formation & close to leaving-point, disband the formation
+                for agent in self.agents_in_my_formation:
+                    agent.state = "flying"
+                    agent.formation_state = "no_formation"
+                    agent.agents_in_my_formation = []
                 self.state = "flying"
                 self.formation_state = "no_formation"
                 self.agents_in_my_formation = []
 
             if (self.formation_state == "committed" or self.formation_state == "adding_to_formation") and \
                     (self.distance_to_destination(self.joining_point) <= self.speed_to_joining / 2 or \
-                    self.distance_to_destination(self.joining_point) <= 0.001):
-                # If the agent reached the joining point of a new formation, 
+                    self.distance_to_destination(self.joining_point) <= 0.002):
+                # If the agent reached the joining point of a new formation,
                 # change status to "in formation" and start accepting new bids again.
-                self.formation_state = "in_formation"
-                self.accepting_bids = True
-                self.speed_to_joining = None
+                # If an agent from an already existing formation reaches the joining point, assume all agents that are
+                # already in formation have reached the joining point
+                all_arrived = True
+                for agent in self.agents_in_my_formation:
+                    if not (agent.distance_to_destination(agent.joining_point) <= agent.speed_to_joining / 2 or \
+                            agent.distance_to_destination(agent.joining_point) <= 0.002):
+                        all_arrived = False
+
+                if all_arrived:
+                    for agent in self.agents_in_my_formation:
+                        agent.formation_state = "in_formation"
+                        if agent.manager == 1:
+                            agent.accepting_bids = True
+                        agent.speed_to_joining = None
+                        agent.joining_point = None
+                    self.formation_state = "in_formation"
+                    if self.manager == 1:
+                        self.accepting_bids = True
+                    self.speed_to_joining = None
+                    self.joining_point = None
 
         if self.state == "flying":
             self.model.total_flight_time += 1
@@ -660,9 +681,13 @@ class Flight(Agent):
                 else:
                     f_c = self.speed_to_joining
 
-                self.heading = [self.joining_point[0] - self.pos[0], self.joining_point[1] - self.pos[1]]
-                self.heading /= np.linalg.norm(self.heading)
-                new_pos = self.pos + self.heading * self.speed_to_joining
+                # If somehow arrived to the joining point sooner than other agents in formation, stay put
+                if self.distance_to_destination(self.joining_point) == 0.0:
+                    new_pos = self.pos
+                else:
+                    self.heading = [self.joining_point[0] - self.pos[0], self.joining_point[1] - self.pos[1]]
+                    self.heading /= np.linalg.norm(self.heading)
+                    new_pos = self.pos + self.heading * self.speed_to_joining
 
             else:
                 self.heading = [self.destination[0] - self.pos[0], self.destination[1] - self.pos[1]]
@@ -672,6 +697,9 @@ class Flight(Agent):
 
             if f_c < 0:
                 raise Exception("Fuel cost lower than 0")
+            # if f_c < 0.001:
+            #     print(self.unique_id, self.formation_state, self.manager, self.distance_to_destination(self.joining_point), f_c, self.speed_to_joining)
+            #     print([(mate.unique_id, mate.formation_state, mate.manager) for mate in self.agents_in_my_formation])
 
             self.model.total_fuel_consumption += f_c
             self.fuel_consumption += f_c
@@ -707,16 +735,22 @@ class Flight(Agent):
                 # This means the speed to joining point must be proportional to the distance to the joining point
                 # dist_self = time * speed_self ; dist_neighbor = time * speed_neighbor
                 # => dist_self / dist_neighbor = speed_self / speed_neighbor
-                speed_fraction = dist_self/dist_neighbor
+                dist_fraction = dist_self/dist_neighbor
                 # Keep the average of the two speeds to the regular speed: (speed_self + speed_neighbor)/2 = self.speed
-                speed_self = self.speed * 2 * speed_fraction / (1 + speed_fraction)
-                speed_neighbor = speed_self / speed_fraction
+                speed_self = self.speed * 2 * dist_fraction / (1 + dist_fraction)
+                speed_neighbor = speed_self / dist_fraction
+                time_self = math.floor(dist_self / speed_self) + 1*bool(dist_self % speed_self>0.002)
+                # time_neighbor = math.floor(dist_neighbor / speed_neighbor) + 1*bool(dist_neighbor % speed_self>0.002)
+                # speed_self = dist_self/time_self
+                # speed_neighbor = dist_neighbor/time_self
+                # assert time_self == time_neighbor, (time_self, time_neighbor)
+                # assert speed_self == dist_self/time_self, (dist_self, dist_self/speed_self, time_self, speed_self, dist_self/time_self)
                 assert round(dist_self / speed_self, 3) == round(dist_neighbor / speed_neighbor, 3), f"{dist_self} / {speed_self} = {dist_neighbor} / {speed_neighbor} => {round(dist_self / speed_self, 3)} = {round(dist_neighbor / speed_neighbor, 3)}"
                 assert speed_self > 0 and speed_neighbor > 0, f"{speed_self}, {speed_neighbor}\n{dist_self}, {dist_neighbor}\n{1-speed_fraction}"
-            elif round(dist_self, 3) == 0.0:
+            elif dist_self == 0.0:
                 speed_self = 0.0
                 speed_neighbor = self.speed
-            elif round(dist_neighbor, 3) == 0.0:
+            elif dist_neighbor == 0.0:
                 speed_self = self.speed
                 speed_neighbor = 0.0
             else:
@@ -724,7 +758,7 @@ class Flight(Agent):
         except FloatingPointError as err:
             print(dist_self)
             print(dist_neighbor)
-            print(speed_fraction)
+            print(dist_fraction)
             print(speed_self)
             raise err
         # print(f"Self: {dist_self, speed_self} = {dist_self/speed_self}; Neighbor{dist_neighbor, speed_neighbor} = {dist_neighbor/speed_neighbor}")

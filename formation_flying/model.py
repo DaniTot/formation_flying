@@ -6,18 +6,15 @@
 """
 
 import numpy as np
-np.seterr(all='raise')
-
 from mesa import Model
 from mesa.space import ContinuousSpace
 from mesa.time import SimultaneousActivation
 from mesa.datacollection import DataCollector
-from mesa.batchrunner import BatchRunner
-from .metrics import *
-from .parameters import model_params, max_steps, n_iterations, model_reporter_parameters, agent_reporter_parameters, variable_params
+from .parameters import model_reporter_parameters, agent_reporter_parameters
 from .agents.flight import Flight
 from .agents.airports import Airport
 from .miscellaneous import calc_distance
+np.seterr(all='raise')
 
 
 class FormationFlying(Model):
