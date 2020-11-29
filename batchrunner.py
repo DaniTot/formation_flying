@@ -22,6 +22,8 @@ batch_run.run_all()
 
 run_data = batch_run.get_model_vars_dataframe()
 agent_data = batch_run.get_agent_vars_dataframe()
-agent_data.to_excel(f"agent_output_{n_iterations}_CNP_comm_range.xlsx")
-run_data.to_excel(f"model_output_{n_iterations}_CNP_comm_range.xlsx")
+agent_data.to_excel(f"agent_output_{n_iterations}_CNP_airport2.xlsx")
+run_data.to_excel(f"model_output_{n_iterations}_CNP_airport2.xlsx")
+# agent_data.to_excel(f"agent_output.xlsx")
+# run_data.to_excel(f"model_output.xlsx")
 

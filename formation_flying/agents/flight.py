@@ -92,7 +92,7 @@ class Flight(Agent):
         self.real_fuel_saved = None
         self.distance_in_formation = 0  ##
         self.formation_size = 0  ##
-        self.planned_flight_time = calc_distance(self.pos, self.destination) / self.speed
+        self.planned_flight_time = self.distance_to_destination(self.destination) / self.speed
         self.scheduled_arrival = self.departure_time + self.planned_flight_time
         # self.estimated_flight_time = 0 #
         # self.estimated_arrival = 0 #

@@ -37,6 +37,23 @@ max_steps = 100000
 
 # Multiple iterations are used when running the batchrunner.py:
 n_iterations = 4
+# Used for greedy vs CNP
+# model_params = {
+#     "n_flights": 50,
+#     "n_origin_airports": 20,
+#     "n_destination_airports": 20,
+#     # "communication_range": 200, #[km]
+#     "width": 750, # [km]
+#     "height": 750, # [km]
+#     "speed": 0.25, #[km / second]
+#     "fuel_reduction": 0.75,
+#     "negotiation_method": 0,
+#     "departure_window": 3,
+#     "origin_airport_x": [0.01, 0.3],
+#     "origin_airport_y": [0.01, 0.3],
+#     "destination_airport_x": [0.7, 0.99],
+#     "destination_airport_y": [0.7, 0.99],
+# }
 
 model_params = {
     "n_flights": 50,
@@ -46,18 +63,18 @@ model_params = {
     "width": 750, # [km]
     "height": 750, # [km]
     "speed": 0.25, #[km / second]
-    "fuel_reduction": 0.75, 
+    "fuel_reduction": 0.75,
     "negotiation_method": 1,
-    "departure_window": 3, 
-    "origin_airport_x": [0.01, 0.3], 
-    "origin_airport_y": [0.01, 0.3],
-    "destination_airport_x": [0.7, 0.99], 
-    "destination_airport_y": [0.7, 0.99],
+    "departure_window": 3,
+    "origin_airport_x": [0.00, 0.2],
+    "origin_airport_y": [0.00, 0.2],
+    "destination_airport_x": [0.8, 1.0],
+    "destination_airport_y": [0.8, 1.0],
 }
 
 # To run model with a variable parameter:
 # example: variable_params = {"communication_range": [0, 100, 500]}
-variable_params = {"communication_range": [50, 200, 500]}
+variable_params = {"communication_range": [200]}
 
 # TODO: Performance indicators:
 #  Fuel saved / alliance
